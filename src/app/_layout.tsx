@@ -1,10 +1,16 @@
-import * as SplashScreen from "expo-splash-screen";
-
-import AppTabs from "@/components/app-tabs";
+import BottomNav from "@/components/bottom-nav";
+import { Tabs } from "expo-router";
 import "../global.css";
 
-SplashScreen.preventAutoHideAsync();
-
-export default function TabLayout() {
-  return <AppTabs />;
+export default function TabsLayout() {
+  return (
+    <Tabs
+      tabBar={(props) => <BottomNav {...props} />}
+      screenOptions={{ headerShown: false }}
+    >
+      <Tabs.Screen name="search" />
+      <Tabs.Screen name="scan" />
+      <Tabs.Screen name="profile" />
+    </Tabs>
+  );
 }
