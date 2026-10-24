@@ -1,14 +1,14 @@
 import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
 import { Image, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 const colors = require("../constants/colors");
 
 type Props = {
   onLogin?: () => void;
-  onCreateAccount?: () => void;
 };
 
-export default function WelcomeScreen({ onLogin, onCreateAccount }: Props) {
+export default function WelcomeScreen({ onLogin }: Props) {
   return (
     <LinearGradient
       colors={[colors.mist.top, colors.mist.mid, colors.mist.bottom]}
@@ -42,7 +42,7 @@ export default function WelcomeScreen({ onLogin, onCreateAccount }: Props) {
             </Pressable>
 
             <Pressable
-              onPress={onCreateAccount}
+              onPress={() => router.push("/onboarding")}
               accessibilityRole="button"
               className="rounded-full border-[3px] border-primary px-10 py-4 active:opacity-70"
             >

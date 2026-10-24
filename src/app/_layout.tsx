@@ -1,16 +1,11 @@
-import BottomNav from "@/components/bottom-nav";
-import { Tabs } from "expo-router";
+import { Stack } from "expo-router";
 import "../global.css";
 
-export default function TabsLayout() {
+export default function RootLayout() {
   return (
-    <Tabs
-      tabBar={(props) => <BottomNav {...props} />}
-      screenOptions={{ headerShown: false }}
-    >
-      <Tabs.Screen name="search" />
-      <Tabs.Screen name="scan" />
-      <Tabs.Screen name="profile" />
-    </Tabs>
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="welcome" />
+      <Stack.Screen name="(tabs)" />
+    </Stack>
   );
 }

@@ -9,7 +9,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 // Same palette as theme/colors.js. Icons take a color prop, not className,
 // so we import the values directly.
-const colors = require("../constants/colors");
+const colors = require("../../constants/colors");
 
 type Props = {
   name?: string;

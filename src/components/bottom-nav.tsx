@@ -1,6 +1,13 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import type { BottomTabBarProps } from "expo-router/js-tabs";
+import { useEffect, useRef, useState } from "react";
 import { Pressable, View } from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const colors = require("../constants/colors");
@@ -16,6 +23,9 @@ const TABS = [
     lib: "mci",
   },
 ] as const;
+
+const INACTIVE_SIZE = 28;
+const ACTIVE_SIZE = 36;
 
 function TabIcon({
   tab,
@@ -33,6 +43,62 @@ function TabIcon({
   );
 }
 
+// Shared progress value: 1 when focused, 0 when not. Starts at the right value,
+// so icons are visible on the very first render.
+function useFocusProgress(focused: boolean) {
+  const p = useSharedValue(focused ? 1 : 0);
+
+  useEffect(() => {
+    p.value = withTiming(focused ? 1 : 0, { duration: 200 });
+  }, [focused, p]);
+
+  return p;
+}
+
+// Dark icon in the bar: fades/shrinks out when its tab becomes active
+function InactiveIcon({
+  tab,
+  focused,
+}: {
+  tab: (typeof TABS)[number];
+  focused: boolean;
+}) {
+  const p = useFocusProgress(focused);
+
+  const style = useAnimatedStyle(() => ({
+    opacity: 1 - p.value,
+    transform: [{ scale: 1 - 0.4 * p.value }],
+  }));
+
+  return (
+    <Animated.View style={style}>
+      <TabIcon tab={tab} size={INACTIVE_SIZE} color={colors.ink} />
+    </Animated.View>
+  );
+}
+
+// White icon inside the sliding circle: cross-fades with the others
+function ActiveIcon({
+  tab,
+  focused,
+}: {
+  tab: (typeof TABS)[number];
+  focused: boolean;
+}) {
+  const p = useFocusProgress(focused);
+
+  const style = useAnimatedStyle(() => ({
+    opacity: p.value,
+    transform: [{ scale: 0.6 + 0.4 * p.value }],
+  }));
+
+  return (
+    <Animated.View style={[{ position: "absolute" }, style]}>
+      <TabIcon tab={tab} size={ACTIVE_SIZE} color="#fff" />
+    </Animated.View>
+  );
+}
+
 export default function BottomNav({
   state,
   emitter,
@@ -40,13 +106,42 @@ export default function BottomNav({
 }: BottomTabBarProps) {
   const activeName = state.routes[state.index].name;
 
+  // Only tabs whose route file exists
+  const visibleTabs = TABS.filter((t) =>
+    state.routes.some((r) => r.name === t.name),
+  );
+  const activeIndex = visibleTabs.findIndex((t) => t.name === activeName);
+
+  const [width, setWidth] = useState(0);
+  const tabWidth = width / Math.max(visibleTabs.length, 1);
+
+  const x = useSharedValue(0);
+  const hasPositioned = useRef(false);
+
+  useEffect(() => {
+    if (!width || activeIndex < 0) return;
+    const target = activeIndex * tabWidth;
+    if (!hasPositioned.current) {
+      x.value = target; // no animation on first layout
+      hasPositioned.current = true;
+    } else {
+      x.value = withSpring(target, { damping: 16, stiffness: 180, mass: 0.8 });
+    }
+  }, [activeIndex, tabWidth, width, x]);
+
+  const bubbleStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: x.value }],
+  }));
+
   return (
     <View className="bg-white">
       <SafeAreaView edges={["bottom"]}>
-        <View className="h-20 flex-row">
-          {TABS.map((tab) => {
-            const route = state.routes.find((r) => r.name === tab.name);
-            if (!route) return null; // tab file doesn't exist (yet)
+        <View
+          className="h-20 flex-row"
+          onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
+        >
+          {visibleTabs.map((tab) => {
+            const route = state.routes.find((r) => r.name === tab.name)!;
             const focused = activeName === tab.name;
 
             const onPress = () => {
@@ -69,19 +164,31 @@ export default function BottomNav({
                 accessibilityState={{ selected: focused }}
                 className="flex-1 items-center justify-center"
               >
-                {focused ? (
-                  // Raised active tab: primary circle with a white halo
-                  <View className="absolute -top-10 rounded-full bg-white p-2">
-                    <View className="h-24 w-24 items-center justify-center rounded-full bg-primary">
-                      <TabIcon tab={tab} size={56} color="#fff" />
-                    </View>
-                  </View>
-                ) : (
-                  <TabIcon tab={tab} size={44} color={colors.ink} />
-                )}
+                <InactiveIcon tab={tab} focused={focused} />
               </Pressable>
             );
           })}
+
+          {/* Sliding circle (primary circle with white halo), vertically centered on the icons */}
+          {width > 0 && activeIndex >= 0 && (
+            <Animated.View
+              pointerEvents="none"
+              className="absolute left-0 top-0 h-full items-center justify-center"
+              style={[{ width: tabWidth }, bubbleStyle]}
+            >
+              <View className="rounded-full bg-white p-2">
+                <View className="h-16 w-16 items-center justify-center rounded-full bg-primary">
+                  {visibleTabs.map((tab) => (
+                    <ActiveIcon
+                      key={tab.name}
+                      tab={tab}
+                      focused={activeName === tab.name}
+                    />
+                  ))}
+                </View>
+              </View>
+            </Animated.View>
+          )}
         </View>
       </SafeAreaView>
     </View>
