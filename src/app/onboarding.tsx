@@ -1,10 +1,12 @@
-import { LinearGradient } from "expo-linear-gradient";
-import { useState } from "react";
-import { Image, Pressable, Text, View } from "react-native";
+import Button from "@/components/button";
+import GradientBackground from "@/components/gradient-background";
+import SponsorFooter from "@/components/sponsor-footer";
+import { useProfile } from "@/context/profile-context";
+import { router } from "expo-router";
+import { Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const colors = require("../constants/colors");
-
+// 14 allergens required to be declared in the EU
 const DEFAULT_OPTIONS = [
   "Gluten",
   "Skaldjur",
@@ -21,52 +23,38 @@ const DEFAULT_OPTIONS = [
 
 type Props = {
   options?: string[];
-  onNext?: (selected: string[]) => void;
   onSkip?: () => void;
 };
 
 export default function OnboardingScreen({
   options = DEFAULT_OPTIONS,
-  onNext,
   onSkip,
 }: Props) {
-  const [selected, setSelected] = useState<string[]>([]);
-
-  const toggle = (option: string) =>
-    setSelected((prev) =>
-      prev.includes(option)
-        ? prev.filter((o) => o !== option)
-        : [...prev, option],
-    );
+  const { hasRestriction, toggleRestriction } = useProfile();
 
   return (
-    <LinearGradient
-      colors={[colors.mist.top, colors.mist.mid, colors.mist.bottom]}
-      start={{ x: 0.3, y: 0 }}
-      end={{ x: 0.7, y: 1 }}
-      style={{ flex: 1 }}
-    >
+    <GradientBackground>
       <SafeAreaView className="flex-1">
-        <View className="flex-1 items-center justify-center px-6">
+        <View className="flex-1 items-center justify-center px-6 gap-12">
           <Text
             accessibilityRole="header"
-            className="text-center font-nunito-bold text-4xl text-ink"
+            className="text-center font-bold text-5xl text-ink"
           >
             Kom igång
           </Text>
 
-          <Text className="mt-8 text-center font-nunito text-base text-black">
+          <Text className="text-center text-base text-ink">
             Välj dina matpreferenser (fler val finns i nästa steg)
           </Text>
 
           {/* Chips */}
-          <View className="mt-10 flex-row flex-wrap justify-center gap-x-4 gap-y-2.5">
+          <View className="flex-row flex-wrap justify-center gap-x-4 gap-y-4">
             {options.map((option) => {
-              const isSelected = selected.includes(option);
+              const isSelected = hasRestriction(option);
               return (
                 <Pressable
                   key={option}
-                  onPress={() => toggle(option)}
+                  onPress={() => toggleRestriction(option)}
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: isSelected }}
                   className={`rounded-full px-4 py-2 active:opacity-80 ${
@@ -74,7 +62,7 @@ export default function OnboardingScreen({
                   }`}
                 >
                   <Text
-                    className={`font-nunito-semibold text-base ${
+                    className={`font-semibold text-base ${
                       isSelected ? "text-white" : "text-ink"
                     }`}
                   >
@@ -85,21 +73,16 @@ export default function OnboardingScreen({
             })}
           </View>
 
-          <Pressable
-            onPress={() => onNext?.(selected)}
-            accessibilityRole="button"
-            className="mt-12 rounded-full bg-primary px-9 py-3.5 active:opacity-80"
-          >
-            <Text className="font-nunito-semibold text-2xl text-white">
-              Nästa steg
-            </Text>
-          </Pressable>
+          <Button
+            onPress={() => router.push("/restrictions-setup")}
+            label="Nästa steg"
+          />
 
           <Pressable
-            onPress={onSkip}
+            onPress={() => router.replace("/(tabs)/profile")}
             accessibilityRole="button"
             hitSlop={12}
-            className="mt-10 active:opacity-60"
+            className="active:opacity-60"
           >
             <Text className="font-nunito text-xl text-primary underline">
               Hoppa över
@@ -107,19 +90,8 @@ export default function OnboardingScreen({
           </Pressable>
         </View>
 
-        {/* Footer: sponsor */}
-        <View className="flex-row items-center justify-center pb-6">
-          <Text className="mr-4 text-base font-medium text-ink">
-            Med stöd från
-          </Text>
-          <Image
-            source={require("../../assets/astma-allergi-forbundet.png")}
-            className="h-[60px] w-[160px]"
-            resizeMode="contain"
-            accessibilityLabel="Astma- och Allergiförbundet"
-          />
-        </View>
+        <SponsorFooter />
       </SafeAreaView>
-    </LinearGradient>
+    </GradientBackground>
   );
 }

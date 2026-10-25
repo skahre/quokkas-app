@@ -1,6 +1,7 @@
 import Button from "@/components/button";
 import GradientBackground from "@/components/gradient-background";
 import SponsorFooter from "@/components/sponsor-footer";
+import { useProfile } from "@/context/profile-context";
 import { router } from "expo-router";
 import { Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -10,6 +11,10 @@ type Props = {
 };
 
 export default function WelcomeScreen({ onLogin }: Props) {
+  const { name } = useProfile();
+
+  if (name) router.push("/scan");
+
   return (
     <GradientBackground>
       <SafeAreaView className="flex-1">
