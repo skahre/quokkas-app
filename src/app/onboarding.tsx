@@ -23,13 +23,9 @@ const DEFAULT_OPTIONS = [
 
 type Props = {
   options?: string[];
-  onSkip?: () => void;
 };
 
-export default function OnboardingScreen({
-  options = DEFAULT_OPTIONS,
-  onSkip,
-}: Props) {
+export default function OnboardingScreen({ options = DEFAULT_OPTIONS }: Props) {
   const { hasRestriction, toggleRestriction } = useProfile();
 
   return (

@@ -27,7 +27,7 @@ const INGREDIENTS = [
 ];
 
 export default function RestrictionsSetupScreen() {
-  const { restrictions, hasRestriction, toggleRestriction } = useProfile();
+  const { restrictions, getSeverity, toggleRestriction } = useProfile();
   const [query, setQuery] = useState("");
   const keyboardVisible = useKeyboardVisible();
 
@@ -35,8 +35,10 @@ export default function RestrictionsSetupScreen() {
 
   const results = useMemo(() => {
     if (!q) return [];
-    const pool = Array.from(new Set([...INGREDIENTS, ...restrictions]));
-    return pool.filter((i) => i.toLowerCase().includes(q));
+    const pool = Array.from(
+      new Set([...INGREDIENTS, ...restrictions.map((r) => r.name)]),
+    );
+    return pool.filter((name) => name.toLowerCase().includes(q));
   }, [q, restrictions]);
 
   return (
@@ -65,39 +67,38 @@ export default function RestrictionsSetupScreen() {
             >
               {q ? (
                 results.length > 0 ? (
-                  results.map((item) =>
-                    hasRestriction(item) ? (
-                      // Already added: same spot as the plus button, but just
-                      // an indicator, not tappable.
+                  results.map((name) => {
+                    const severity = getSeverity(name);
+                    return severity ? (
                       <Allergen
-                        key={item}
-                        label={item}
-                        severity="allergy"
+                        key={name}
+                        label={name}
+                        severity={severity}
                         actionType="remove"
-                        onAction={() => toggleRestriction(item)}
+                        onAction={() => toggleRestriction(name)}
                       />
                     ) : (
                       <Allergen
-                        key={item}
-                        label={item}
+                        key={name}
+                        label={name}
                         actionType="add"
-                        onAction={() => toggleRestriction(item)}
+                        onAction={() => toggleRestriction(name)}
                       />
-                    ),
-                  )
+                    );
+                  })
                 ) : (
                   <Text className="text-center text-lg text-ink">
                     Inga ingredienser hittades.
                   </Text>
                 )
               ) : (
-                restrictions.map((item: string) => (
+                restrictions.map((item) => (
                   <Allergen
-                    key={item}
-                    label={item}
-                    severity="allergy"
+                    key={item.name}
+                    label={item.name}
+                    severity={item.severity}
                     actionType="remove"
-                    onAction={() => toggleRestriction(item)}
+                    onAction={() => toggleRestriction(item.name)}
                   />
                 ))
               )}
