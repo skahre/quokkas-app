@@ -6,16 +6,17 @@ import { SafeAreaView } from "react-native-safe-area-context";
 const colors = require("../constants/colors");
 
 const DEFAULT_OPTIONS = [
-  "Laktos",
-  "Ägg",
-  "Nötter",
   "Gluten",
-  "Mjölkprotein",
-  "Vegetariskt",
-  "Vegan",
-  "Halal",
-  "Låg FODMAP",
-  "Soja",
+  "Skaldjur",
+  "Ägg",
+  "Fisk",
+  "Jordnötter",
+  "Sojabönor",
+  "Mjölk",
+  "Nötter",
+  "Selleri",
+  "Senap",
+  "Sesamfrön",
 ];
 
 type Props = {
@@ -69,7 +70,7 @@ export default function OnboardingScreen({
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: isSelected }}
                   className={`rounded-full px-4 py-2 active:opacity-80 ${
-                    isSelected ? "bg-primary" : "bg-white"
+                    isSelected ? "bg-danger" : "bg-white"
                   }`}
                 >
                   <Text
