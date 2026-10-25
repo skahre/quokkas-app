@@ -1,199 +1,177 @@
+import Allergen from "@/components/allergen";
+import Button from "@/components/button";
+import IconButton from "@/components/icon-button";
+import { useProfile } from "@/context/profile-context";
 import {
   Ionicons,
   MaterialCommunityIcons,
   MaterialIcons,
 } from "@expo/vector-icons";
-import React from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { router } from "expo-router";
+import { Alert, Pressable, ScrollView, Share, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-// Same palette as theme/colors.js. Icons take a color prop, not className,
-// so we import the values directly.
 const colors = require("../../constants/colors");
 
-type Props = {
-  name?: string;
-  restrictions?: string[];
-  lists?: string[];
-  onSettings?: () => void;
-  onShare?: () => void;
-  onAddRestriction?: () => void;
-  onEditRestriction?: (item: string) => void;
-  onAddList?: () => void;
-  onEditList?: (item: string) => void;
-  onDeleteList?: (item: string) => void;
-};
+export default function ProfileScreen() {
+  const { name, restrictions, lists, createList, deleteList } = useProfile();
 
-export default function ProfileScreen({
-  name = "Lasse Andersson",
-  restrictions = ["Lök", "Nötter", "Soja"],
-  lists = ["Alice Cohen", "Phöseriet 2026", "Familjen"],
-  onSettings,
-  onShare,
-  onAddRestriction,
-  onEditRestriction,
-  onAddList,
-  onEditList,
-  onDeleteList,
-}: Props) {
+  // TODO: point these at your real routes.
+  const openSettings = () => router.push("/profile");
+  const editRestrictions = () => router.push("/profile");
+  const editList = (id: string) => router.push(`/profile`);
+
+  // TODO: A link that can be uploaded in the app
+  const shareRestrictions = () =>
+    Share.share({
+      message: `Mina restriktioner: ${restrictions.join(", ")}`,
+    });
+
+  const addList = () => {
+    const id = createList("Ny lista");
+    editList(id); // open it straight away so it can be renamed and filled
+  };
+
+  const confirmDeleteList = (id: string, listName: string) =>
+    Alert.alert(`Ta bort "${listName}"?`, "Det går inte att ångra.", [
+      { text: "Avbryt", style: "cancel" },
+      { text: "Ta bort", style: "destructive", onPress: () => deleteList(id) },
+    ]);
+
   return (
-    <View className="flex-1 bg-cream">
-      <SafeAreaView edges={["top"]} className="flex-1">
-        <ScrollView
-          className="flex-1"
-          contentContainerClassName="px-4 pb-40 pt-2"
-          showsVerticalScrollIndicator={false}
-        >
+    <SafeAreaView className="flex-1 bg-background">
+      <ScrollView
+        className="flex-1"
+        contentContainerClassName="p-4"
+        showsVerticalScrollIndicator={false}
+      >
+        <View className="flex-1 gap-8">
           {/* Profile card */}
-          <View className="flex-row items-center rounded-3xl bg-white px-4 py-4">
+          <View className="flex-row gap-4 items-center rounded-3xl bg-white px-4 py-4">
             <MaterialCommunityIcons
               name="account-circle-outline"
               size={72}
-              color={colors.primary.DEFAULT}
+              color={colors.primary}
             />
-            <Text className="ml-4 flex-1 font-nunito-bold text-lg text-ink">
-              {name}
+            <Text className="flex-1 font-bold text-lg text-ink">
+              {name || "Din profil"}
             </Text>
-            <IconButton label="Inställningar" onPress={onSettings}>
+            <IconButton label="Inställningar" onPress={openSettings}>
               <Ionicons name="settings-sharp" size={28} color={colors.ink} />
             </IconButton>
           </View>
 
           {/* Restrictions */}
-          <View className="mt-10 flex-row items-center justify-between">
-            <Text
-              accessibilityRole="header"
-              className="font-nunito-bold text-xl text-ink"
-            >
-              Dina restriktioner
-            </Text>
-            <Pressable
-              onPress={onShare}
-              accessibilityRole="button"
-              className="flex-row items-center rounded-full border-2 border-primary px-4 py-1.5 active:opacity-70"
-            >
-              <Text className="mr-1.5 font-nunito-semibold text-base text-primary">
-                Dela
+          <View className="flex-col gap-2">
+            <View className="flex-row items-center justify-between">
+              <Text
+                accessibilityRole="header"
+                className="font-bold text-xl text-ink"
+              >
+                Dina restriktioner
               </Text>
-              <Ionicons
-                name="share-social-outline"
-                size={18}
-                color={colors.primary.DEFAULT}
-              />
-            </Pressable>
-          </View>
-
-          <View className="mt-3 gap-2.5">
-            {restrictions.map((item) => (
-              <Row key={item}>
-                <MaterialCommunityIcons
-                  name="emoticon-sad"
-                  size={34}
-                  color={colors.danger}
-                />
-                <Text className="ml-4 flex-1 font-nunito text-lg text-ink">
-                  {item}
-                </Text>
-                <IconButton
-                  label={`Redigera ${item}`}
-                  onPress={() => onEditRestriction?.(item)}
+              {restrictions.length > 0 && (
+                <Pressable
+                  onPress={shareRestrictions}
+                  accessibilityRole="button"
+                  className="flex-row items-center gap-1 rounded-full px-4 py-2 active:opacity-80 border-2 border-primary"
                 >
-                  <MaterialIcons name="edit" size={24} color={colors.ink} />
-                </IconButton>
-              </Row>
-            ))}
-          </View>
+                  <Text className="text-base text-primary">Dela</Text>
+                  <Ionicons
+                    name="share-social-outline"
+                    size={18}
+                    color={colors.primary}
+                  />
+                </Pressable>
+              )}
+            </View>
 
-          <Pressable
-            onPress={onAddRestriction}
-            accessibilityRole="button"
-            className="mt-4 flex-row items-center self-center rounded-full bg-primary px-6 py-3 active:opacity-80"
-          >
-            <Ionicons name="add-circle-outline" size={28} color="#fff" />
-            <Text className="ml-1.5 font-nunito-bold text-2xl text-white">
-              Lägg till
-            </Text>
-          </Pressable>
+            <View className="gap-2">
+              {restrictions.length > 0 ? (
+                restrictions.map((item) => (
+                  <Allergen
+                    key={item}
+                    label={item}
+                    severity="allergy"
+                    actionType="edit"
+                    onAction={editRestrictions}
+                  />
+                ))
+              ) : (
+                <Text className="text-base text-ink">
+                  Du har inga restriktioner ännu.
+                </Text>
+              )}
+            </View>
+
+            <Button
+              label="Lägg till"
+              icon="add-circle-outline"
+              iconPosition="left"
+              onPress={editRestrictions}
+              className="self-center"
+            />
+          </View>
 
           {/* Lists */}
-          <View className="mt-10 flex-row items-center justify-between">
-            <Text
-              accessibilityRole="header"
-              className="font-nunito-bold text-xl text-ink"
-            >
-              Dina listor
-            </Text>
-            <IconButton label="Skapa ny lista" onPress={onAddList}>
-              <Ionicons
-                name="add-circle-outline"
-                size={32}
-                color={colors.primary.DEFAULT}
-              />
-            </IconButton>
-          </View>
+          <View className="flex-col gap-2">
+            <View className="flex-row items-center justify-between">
+              <Text
+                accessibilityRole="header"
+                className="font-bold text-xl text-ink"
+              >
+                Dina listor
+              </Text>
+              <IconButton label="Skapa ny lista" onPress={addList}>
+                <Ionicons
+                  name="add-circle-outline"
+                  size={32}
+                  color={colors.primary}
+                />
+              </IconButton>
+            </View>
 
-          <View className="mt-3 gap-2.5">
-            {lists.map((item) => (
-              <Row key={item}>
-                <Text className="flex-1 font-nunito text-lg text-ink">
-                  {item}
+            <View className="gap-2">
+              {lists.length > 0 ? (
+                lists.map((list) => (
+                  <View
+                    key={list.id}
+                    className="flex-row items-center rounded-3xl bg-white px-5 py-4 shadow-md shadow-black/20"
+                  >
+                    <Text className="flex-1 text-lg text-ink">{list.name}</Text>
+                    <View className="flex-row gap-1 items-center">
+                      <IconButton
+                        label={`Redigera ${list.name}`}
+                        onPress={() => editList(list.id)}
+                      >
+                        <MaterialIcons
+                          name="edit"
+                          size={24}
+                          color={colors.ink}
+                        />
+                      </IconButton>
+                      <IconButton
+                        label={`Ta bort ${list.name}`}
+                        onPress={() => confirmDeleteList(list.id, list.name)}
+                      >
+                        <MaterialIcons
+                          name="delete"
+                          size={26}
+                          color={colors.danger}
+                        />
+                      </IconButton>
+                    </View>
+                  </View>
+                ))
+              ) : (
+                <Text className="text-base text-ink">
+                  Du har inga listor ännu.
                 </Text>
-                <IconButton
-                  label={`Redigera ${item}`}
-                  onPress={() => onEditList?.(item)}
-                >
-                  <MaterialIcons name="edit" size={24} color={colors.ink} />
-                </IconButton>
-                <IconButton
-                  label={`Ta bort ${item}`}
-                  onPress={() => onDeleteList?.(item)}
-                  className="ml-4"
-                >
-                  <MaterialIcons
-                    name="delete"
-                    size={26}
-                    color={colors.danger}
-                  />
-                </IconButton>
-              </Row>
-            ))}
+              )}
+            </View>
           </View>
-        </ScrollView>
-      </SafeAreaView>
-    </View>
-  );
-}
-
-/* ---------- Building blocks ---------- */
-
-function Row({ children }: { children: React.ReactNode }) {
-  return (
-    <View className="flex-row items-center rounded-3xl bg-white px-5 py-4 shadow-md shadow-black/20">
-      {children}
-    </View>
-  );
-}
-
-function IconButton({
-  children,
-  label,
-  onPress,
-  className = "",
-}: {
-  children: React.ReactNode;
-  label: string;
-  onPress?: () => void;
-  className?: string;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      hitSlop={10}
-      className={`active:opacity-60 ${className}`}
-    >
-      {children}
-    </Pressable>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }

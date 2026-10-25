@@ -31,7 +31,12 @@ export default function WelcomeScreen({ onLogin }: Props) {
           </Text>
 
           <View className="items-center gap-4">
-            <Button onPress={onLogin} variant="primary" label="Logga in" />
+            <Button
+              onPress={onLogin}
+              variant="primary"
+              label="Logga in"
+              className="self-center"
+            />
             <Button
               onPress={() => router.push("/onboarding")}
               variant="secondary"

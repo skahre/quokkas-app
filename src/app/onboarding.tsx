@@ -76,6 +76,7 @@ export default function OnboardingScreen({
           <Button
             onPress={() => router.push("/restrictions-setup")}
             label="Nästa steg"
+            className="self-center"
           />
 
           <Pressable

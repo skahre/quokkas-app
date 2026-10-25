@@ -107,6 +107,8 @@ export default function RestrictionsSetupScreen() {
               label="Börja handla tryggt"
               onPress={() => router.replace("/scan")}
               className="absolute bottom-0 right-0 shadow-lg shadow-ink/30"
+              icon="arrow-forward"
+              iconPosition="right"
             />
           </View>
         </View>

@@ -1,5 +1,6 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
+import IconButton from "./icon-button";
 const colors = require("../constants/colors");
 
 type AllergenProps = {
@@ -26,11 +27,9 @@ export default function Allergen({
       )}
 
       <Text className="flex-1 text-lg text-ink">{label}</Text>
-      <Pressable
+      <IconButton
         onPress={onAction}
-        accessibilityRole="button"
-        accessibilityLabel={`Ta bort ${label}`}
-        hitSlop={10}
+        label={actionType}
         className="active:opacity-60"
       >
         {actionType !== "edit" && (
@@ -53,7 +52,7 @@ export default function Allergen({
         {actionType === "edit" && (
           <MaterialCommunityIcons name="pencil" size={24} color={colors.ink} />
         )}
-      </Pressable>
+      </IconButton>
     </View>
   );
 }
