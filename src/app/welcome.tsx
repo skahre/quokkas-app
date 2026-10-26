@@ -3,7 +3,7 @@ import GradientBackground from "@/components/gradient-background";
 import SponsorFooter from "@/components/sponsor-footer";
 import { useProfile } from "@/context/profile-context";
 import { router } from "expo-router";
-import { Text, View } from "react-native";
+import { Image, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 type Props = {
@@ -18,13 +18,13 @@ export default function WelcomeScreen({ onLogin }: Props) {
   return (
     <GradientBackground>
       <SafeAreaView className="flex-1">
-        <View className="flex-1 gap-12 items-center justify-center">
-          <Text
-            accessibilityRole="header"
-            className="text-center text-5xl font-bold text-ink"
-          >
-            [APP NAME]
-          </Text>
+        <View className="flex-1 gap-6 items-center justify-center">
+          <Image
+            source={require("../../assets/logo.png")}
+            className="h-[280px]"
+            resizeMode="contain"
+            accessibilityLabel="Qoll"
+          />
 
           <Text className="text-center text-lg text-ink">
             För att du ska kunna handla utan oro

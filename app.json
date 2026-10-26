@@ -7,7 +7,7 @@
     "scheme": "foodscanner",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": ""
+      "icon": "logo-icon.png"
     },
     "android": {
       "adaptiveIcon": {
@@ -34,7 +34,7 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#208AEF",
-          "image": "",
+          "image": "logo-icon.png",
           "imageWidth": 76
         }
       ],
