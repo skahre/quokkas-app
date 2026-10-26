@@ -9,6 +9,7 @@ import {
   uncheckable,
   type FoodProduct,
 } from "@/lib/open-food-facts";
+import { router } from "expo-router";
 import { useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -33,6 +34,7 @@ export default function SearchScreen() {
   const [error, setError] = useState<SearchError>(null);
   const [openingCode, setOpeningCode] = useState<string | null>(null);
   const [selected, setSelected] = useState<{
+    code: string;
     product: SheetProduct;
     matches: ProductMatch[];
   } | null>(null);
@@ -42,7 +44,6 @@ export default function SearchScreen() {
   const handleQueryChange = (text: string) => {
     setQuery(text);
     if (!text.trim()) {
-      // Cleared: go back to the empty state
       abortRef.current?.abort();
       setResults([]);
       setSearched(false);
@@ -80,6 +81,7 @@ export default function SearchScreen() {
     try {
       const details = await getProductDetails(item.code);
       setSelected({
+        code: details.code,
         product: details,
         matches: buildMatches(
           restrictions,
@@ -157,6 +159,14 @@ export default function SearchScreen() {
         product={selected?.product ?? null}
         matches={selected?.matches ?? []}
         onClose={() => setSelected(null)}
+        onShowIngredients={() => {
+          if (!selected) return;
+          router.push({
+            pathname: "/product/[id]",
+            params: { id: selected.code },
+          });
+          setSelected(null);
+        }}
       />
     </View>
   );

@@ -75,7 +75,7 @@ const ROW_ICON = {
   intolerance: { icon: "emoticon-neutral", color: colors.warn },
 } as const;
 
-function getStatus(matches: ProductMatch[]): Status {
+export function getStatus(matches: ProductMatch[]): Status {
   if (
     matches.some((m) => m.presence === "contains" && m.severity === "allergy")
   )

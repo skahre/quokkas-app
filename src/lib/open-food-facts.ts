@@ -1,6 +1,7 @@
 import type { Restriction } from "@/context/profile-context";
 
-const USER_AGENT = "FoodScanner/1.0 (skahre@kth.se)";
+// TODO: put your app's name, version and a real contact address here.
+const USER_AGENT = "MyApp/1.0 (contact@example.com)";
 const HEADERS = { "User-Agent": USER_AGENT, Accept: "application/json" };
 
 const SEARCH_URL = "https://search.openfoodfacts.org/search";
@@ -9,9 +10,8 @@ const PRODUCT_URL = "https://world.openfoodfacts.org/api/v2/product";
 const SEARCH_FIELDS =
   "code,product_name,brands,image_small_url,image_front_small_url,image_url";
 const DETAIL_FIELDS =
-  "code,product_name,brands,image_front_small_url,allergens_tags,traces_tags,ingredients_text";
+  "code,product_name,generic_name,brands,image_front_url,image_front_small_url,allergens_tags,traces_tags,ingredients_text,nutriments";
 
-/** OFF allows 10 searches and 15 product reads per minute (per user in apps). */
 export class RateLimitError extends Error {}
 
 export type FoodProduct = {
@@ -25,9 +25,23 @@ export type ProductDetails = FoodProduct & {
   contains: string[];
   traces: string[];
   hasIngredients: boolean;
+  ingredientsText?: string;
+  description?: string;
+  nutrition: Nutrition;
 };
 
-// TODO: Replace (get allergens from API as well)
+export type Nutrition = {
+  energyKj?: number;
+  energyKcal?: number;
+  fat?: number;
+  saturatedFat?: number;
+  carbohydrates?: number;
+  sugars?: number;
+  fiber?: number;
+  protein?: number;
+  salt?: number;
+};
+
 const ALLERGEN_NAMES: Record<string, string> = {
   "en:gluten": "Gluten",
   "en:crustaceans": "Skaldjur",
@@ -79,6 +93,26 @@ function toAppNames(tags: unknown): string[] {
   return Array.from(new Set(names));
 }
 
+function num(v: unknown): number | undefined {
+  const n = typeof v === "string" ? parseFloat(v) : v;
+  return typeof n === "number" && Number.isFinite(n) ? n : undefined;
+}
+
+function toNutrition(raw: unknown): Nutrition {
+  const n = (raw ?? {}) as Record<string, unknown>;
+  return {
+    energyKj: num(n["energy-kj_100g"]),
+    energyKcal: num(n["energy-kcal_100g"]),
+    fat: num(n["fat_100g"]),
+    saturatedFat: num(n["saturated-fat_100g"]),
+    carbohydrates: num(n["carbohydrates_100g"]),
+    sugars: num(n["sugars_100g"]),
+    fiber: num(n["fiber_100g"]),
+    protein: num(n["proteins_100g"]),
+    salt: num(n["salt_100g"]),
+  };
+}
+
 /* ---------- API ---------- */
 
 const searchCache = new Map<string, FoodProduct[]>();
@@ -116,7 +150,6 @@ export async function searchProducts(
   return products;
 }
 
-/** Full product info (allergens, traces) for one barcode. */
 export async function getProductDetails(
   code: string,
   signal?: AbortSignal,
@@ -135,10 +168,16 @@ export async function getProductDetails(
     code,
     name: pickText(p.product_name) || "Okänd produkt",
     brand: firstBrand(p.brands),
-    imageUrl: pickText(p.image_front_small_url) || undefined,
+    imageUrl:
+      pickText(p.image_front_url) ||
+      pickText(p.image_front_small_url) ||
+      undefined,
     contains: toAppNames(p.allergens_tags),
     traces: toAppNames(p.traces_tags),
     hasIngredients: pickText(p.ingredients_text).trim().length > 0,
+    ingredientsText: pickText(p.ingredients_text).trim() || undefined,
+    description: pickText(p.generic_name).trim() || undefined,
+    nutrition: toNutrition(p.nutriments),
   };
   detailsCache.set(code, details);
   return details;
