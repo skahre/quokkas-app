@@ -30,7 +30,8 @@ export default function ProfileScreen() {
   // TODO: point these at your real routes.
   const openSettings = () => router.push("/profile");
   const editRestrictions = () => router.push("/profile");
-  const editList = (id: string) => router.push(`/profile`);
+  const editList = (id: string) =>
+    router.push({ pathname: "/list/[id]", params: { id } });
 
   // TODO: A link that can be uploaded in the app
   const shareRestrictions = () =>
@@ -126,7 +127,7 @@ export default function ProfileScreen() {
                 label="Lägg till"
                 icon="add-circle-outline"
                 iconPosition="left"
-                onPress={editRestrictions}
+                onPress={() => router.push("/edit-restrictions")}
                 className="self-center"
               />
             </View>
