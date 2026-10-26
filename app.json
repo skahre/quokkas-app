@@ -4,7 +4,6 @@
     "slug": "food-scanner",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
     "scheme": "foodscanner",
     "userInterfaceStyle": "automatic",
     "ios": {
@@ -17,7 +16,12 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.sandra.kahre.foodscanner"
     },
     "web": {
       "bundler": "metro",
@@ -45,6 +49,16 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "a10e349b-4e9f-485b-bc79-4049d8b4d1db"
+      }
     }
   }
 }
