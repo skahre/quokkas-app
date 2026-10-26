@@ -1,145 +1,174 @@
-import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useState } from "react";
+import type { ProductMatch, SheetProduct } from "@/components/result-sheet";
+import ProductResultSheet, { buildMatches } from "@/components/result-sheet";
+import SearchBar from "@/components/search-bar";
+import { useProfile } from "@/context/profile-context";
+import {
+  getProductDetails,
+  RateLimitError,
+  searchProducts,
+  uncheckable,
+  type FoodProduct,
+} from "@/lib/open-food-facts";
+import { useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Image,
   Pressable,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const colors = require("../../constants/colors");
+type SearchError = "rate" | "generic" | null;
 
-type Product = {
-  id: string;
-  name: string;
-  brand: string;
-  imageUrl: string;
-};
+export default function SearchScreen() {
+  const { restrictions } = useProfile();
 
-// TODO: replace with your real API call.
-async function searchProducts(query: string): Promise<Product[]> {
-  const res = await fetch(
-    `https://example.com/api/products?q=${encodeURIComponent(query)}`,
-  );
-  if (!res.ok) throw new Error("Search failed");
-  return res.json();
-}
-
-type Props = {
-  onSelectProduct?: (product: Product) => void;
-};
-
-export default function SearchScreen({ onSelectProduct }: Props) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Product[]>([]);
+  const [results, setResults] = useState<FoodProduct[]>([]);
+  const [searched, setSearched] = useState(false); // has a search been run?
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<SearchError>(null);
+  const [openingCode, setOpeningCode] = useState<string | null>(null);
+  const [selected, setSelected] = useState<{
+    product: SheetProduct;
+    matches: ProductMatch[];
+  } | null>(null);
 
-  // Debounced search: wait 300 ms after the last keystroke, and ignore
-  // responses that arrive after the query has already changed.
-  useEffect(() => {
-    const q = query.trim();
-    if (q.length < 2) {
+  const abortRef = useRef<AbortController | null>(null);
+
+  const handleQueryChange = (text: string) => {
+    setQuery(text);
+    if (!text.trim()) {
+      // Cleared: go back to the empty state
+      abortRef.current?.abort();
       setResults([]);
+      setSearched(false);
+      setError(null);
       setLoading(false);
-      setError(false);
-      return;
     }
+  };
 
-    let cancelled = false;
+  const runSearch = async () => {
+    const q = query.trim();
+    if (q.length < 2) return;
+
+    abortRef.current?.abort(); // drop an older request that's still running
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setLoading(true);
-    const timer = setTimeout(async () => {
-      try {
-        const data = await searchProducts(q);
-        if (!cancelled) {
-          setResults(data);
-          setError(false);
-        }
-      } catch {
-        if (!cancelled) setError(true);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }, 300);
+    setError(null);
+    try {
+      const data = await searchProducts(q, controller.signal);
+      if (controller.signal.aborted) return;
+      setResults(data);
+      setSearched(true);
+    } catch (e) {
+      if (controller.signal.aborted) return;
+      setError(e instanceof RateLimitError ? "rate" : "generic");
+    } finally {
+      if (!controller.signal.aborted) setLoading(false);
+    }
+  };
 
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [query]);
+  const openProduct = async (item: FoodProduct) => {
+    if (openingCode) return;
+    setOpeningCode(item.code);
+    try {
+      const details = await getProductDetails(item.code);
+      setSelected({
+        product: details,
+        matches: buildMatches(
+          restrictions,
+          details.contains,
+          details.traces,
+          uncheckable(restrictions, details),
+        ),
+      });
+    } catch (e) {
+      Alert.alert(
+        e instanceof RateLimitError
+          ? "För många förfrågningar"
+          : "Kunde inte hämta produkten",
+        "Försök igen om en stund.",
+      );
+    } finally {
+      setOpeningCode(null);
+    }
+  };
 
-  const showEmpty =
-    query.trim().length >= 2 && !loading && !error && results.length === 0;
+  const emptyText = error
+    ? error === "rate"
+      ? "Du har sökt för många gånger. Vänta en minut och försök igen."
+      : "Något gick fel. Försök igen."
+    : searched
+      ? "Inga produkter hittades."
+      : "Skriv en produkt och tryck på sök.";
 
   return (
-    <SafeAreaView edges={["top"]} className="flex-1 bg-cream">
-      {/* Search bar */}
-      <View className="mx-4 mt-2 h-[52px] flex-row items-center rounded-full bg-white px-4">
-        <Ionicons name="search-outline" size={24} color={colors.ink} />
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Sök produkt"
-          placeholderTextColor="#8A9695"
-          autoCorrect={false}
-          returnKeyType="search"
-          accessibilityLabel="Sök produkt"
-          className="ml-3 flex-1 font-nunito text-lg text-ink"
-        />
-        {loading && (
-          <ActivityIndicator color={colors.primary.DEFAULT} className="mr-2" />
-        )}
-        {query.length > 0 && (
-          <Pressable
-            onPress={() => setQuery("")}
-            accessibilityRole="button"
-            accessibilityLabel="Rensa sökning"
-            hitSlop={10}
-            className="active:opacity-60"
-          >
-            <Ionicons
-              name="close-circle-outline"
-              size={28}
-              color={colors.ink}
-            />
-          </Pressable>
-        )}
-      </View>
+    <View className="flex-1">
+      <SafeAreaView edges={["top"]} className="flex-1 bg-background">
+        <View className="flex-1 p-4 gap-4">
+          <SearchBar
+            query={query}
+            setQuery={handleQueryChange}
+            onSubmit={runSearch}
+          />
 
-      {/* Results */}
-      <FlatList
-        data={results}
-        keyExtractor={(item) => item.id}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
-        contentContainerClassName="px-4 pb-8 pt-16"
-        ItemSeparatorComponent={() => <View className="h-2.5" />}
-        renderItem={({ item }) => (
-          <ProductCard product={item} onPress={() => onSelectProduct?.(item)} />
-        )}
-        ListEmptyComponent={
-          showEmpty || error ? (
-            <Text className="mt-8 text-center font-nunito text-lg text-ink">
-              {error
-                ? "Något gick fel. Försök igen."
-                : "Inga produkter hittades."}
-            </Text>
-          ) : undefined
-        }
+          {loading && <ActivityIndicator />}
+
+          <FlatList
+            data={results}
+            keyExtractor={(item) => item.code}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            ItemSeparatorComponent={() => <View className="h-2.5" />}
+            renderItem={({ item }) => (
+              <ProductCard
+                product={item}
+                opening={openingCode === item.code}
+                onPress={() => openProduct(item)}
+              />
+            )}
+            ListEmptyComponent={
+              loading ? undefined : (
+                <Text className="text-center text-lg text-ink">
+                  {emptyText}
+                </Text>
+              )
+            }
+            ListFooterComponent={
+              results.length > 0 ? (
+                <Text className="py-4 text-center text-sm text-ink/70">
+                  Produktdata från Open Food Facts
+                </Text>
+              ) : undefined
+            }
+          />
+        </View>
+      </SafeAreaView>
+
+      {/* Covers the screen above the nav bar */}
+      <ProductResultSheet
+        visible={selected !== null}
+        product={selected?.product ?? null}
+        matches={selected?.matches ?? []}
+        onClose={() => setSelected(null)}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
 function ProductCard({
   product,
+  opening,
   onPress,
 }: {
-  product: Product;
+  product: FoodProduct;
+  opening: boolean;
   onPress: () => void;
 }) {
   return (
@@ -147,22 +176,25 @@ function ProductCard({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`${product.name}, ${product.brand}`}
-      className="flex-row items-center rounded-3xl bg-white px-4 py-5 shadow-md shadow-black/20 active:opacity-80"
+      className="flex-row gap-4 items-center rounded-3xl bg-white px-4 py-5 shadow-md shadow-black/20 active:opacity-80"
     >
-      <Image
-        source={{ uri: product.imageUrl }}
-        className="h-12 w-20"
-        resizeMode="contain"
-        accessibilityIgnoresInvertColors
-      />
-      <View className="ml-5 flex-1">
-        <Text className="font-nunito text-lg leading-6 text-ink">
-          {product.name}
-        </Text>
-        <Text className="font-nunito text-base text-ink/70">
-          {product.brand}
-        </Text>
+      {product.imageUrl ? (
+        <Image
+          source={{ uri: product.imageUrl }}
+          className="h-12 w-20"
+          resizeMode="contain"
+          accessibilityIgnoresInvertColors
+        />
+      ) : (
+        <View className="h-12 w-20 rounded-lg bg-background" />
+      )}
+      <View className="flex-1">
+        <Text className="text-lg leading-6 text-ink">{product.name}</Text>
+        {product.brand ? (
+          <Text className="text-base text-ink/70">{product.brand}</Text>
+        ) : null}
       </View>
+      {opening && <ActivityIndicator />}
     </Pressable>
   );
 }

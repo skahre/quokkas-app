@@ -5,9 +5,13 @@ const colors = require("../constants/colors");
 export default function SearchBar({
   query,
   setQuery,
+  onSubmit,
+  placeholder = "Sök allergen...",
 }: {
   query: string;
   setQuery: (q: string) => void;
+  onSubmit?: () => void;
+  placeholder?: string;
 }) {
   return (
     <View className="h-[52px] flex-row items-center rounded-full bg-white px-4">
@@ -15,9 +19,11 @@ export default function SearchBar({
       <TextInput
         value={query}
         onChangeText={setQuery}
-        placeholder="Sök allergen..."
+        onSubmitEditing={onSubmit}
+        returnKeyType="search"
+        placeholder={placeholder}
         autoCorrect={false}
-        accessibilityLabel="Sök ingrediens"
+        accessibilityLabel={placeholder.replace(/\.+$/, "")}
         className="ml-3 flex-1 text-lg text-ink"
       />
       {query.length > 0 && (
