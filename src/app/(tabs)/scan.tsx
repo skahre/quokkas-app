@@ -1,6 +1,8 @@
+import ListToggle from "@/components/list-toggle";
 import type { ProductMatch, SheetProduct } from "@/components/result-sheet";
 import ProductResultSheet, { buildMatches } from "@/components/result-sheet";
-import { useProfile } from "@/context/profile-context";
+import type { RestrictionList } from "@/context/profile-context";
+import { Restriction, useProfile } from "@/context/profile-context";
 import {
   getProductDetails,
   RateLimitError,
@@ -9,16 +11,12 @@ import {
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { router, useIsFocused } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Linking, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-type Props = {
-  onScanned?: (code: string) => void;
-};
-
-export default function ScanScreen({ onScanned }: Props) {
-  const { restrictions } = useProfile();
+export default function ScanScreen() {
+  const { restrictions, lists } = useProfile();
   const isFocused = useIsFocused();
   const [permission, requestPermission] = useCameraPermissions();
   const locked = useRef(false);
@@ -28,6 +26,26 @@ export default function ScanScreen({ onScanned }: Props) {
     matches: ProductMatch[];
   } | null>(null);
   const [openingCode, setOpeningCode] = useState<string | null>(null);
+  const [filters, setFilters] = useState<string[]>(["mine"]);
+  const [activeRestrictions, setActiveRestrictions] =
+    useState<Restriction[]>(restrictions);
+
+  const filterOptions: RestrictionList[] = [
+    {
+      id: "mine",
+      name: "Mina restriktioner",
+      restrictions,
+    },
+    ...lists.filter((list) => list.id !== "mine"),
+  ];
+
+  useEffect(() => {
+    setActiveRestrictions(
+      filterOptions
+        .filter((list) => filters.includes(list.id))
+        .flatMap((list) => list.restrictions),
+    );
+  }, [filters]);
 
   const openProduct = async (code: string) => {
     if (openingCode) return;
@@ -38,10 +56,10 @@ export default function ScanScreen({ onScanned }: Props) {
         code: details.code,
         product: details,
         matches: buildMatches(
-          restrictions,
+          activeRestrictions,
           details.contains,
           details.traces,
-          uncheckable(restrictions, details),
+          uncheckable(activeRestrictions, details),
         ),
       });
     } catch (e) {
@@ -56,6 +74,43 @@ export default function ScanScreen({ onScanned }: Props) {
     }
   };
 
+  useEffect(() => {
+    if (!selected) return;
+
+    let cancelled = false;
+
+    const refreshMatches = async () => {
+      try {
+        const details = await getProductDetails(selected.code);
+
+        if (cancelled) return;
+
+        const matches = buildMatches(
+          activeRestrictions,
+          details.contains,
+          details.traces,
+          uncheckable(activeRestrictions, details),
+        );
+
+        setSelected((current) => {
+          if (!current || current.code !== selected.code) {
+            return current;
+          }
+
+          return { ...current, matches };
+        });
+      } catch (error) {
+        console.error("Failed to refresh matches:", error);
+      }
+    };
+
+    refreshMatches();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [filters, restrictions, lists, selected?.code]);
+
   const handleScan = useCallback(
     ({ data }: { data: string }) => {
       if (locked.current) return;
@@ -63,7 +118,7 @@ export default function ScanScreen({ onScanned }: Props) {
       openProduct(data);
       setTimeout(() => (locked.current = false), 2000); // ...for 2 seconds
     },
-    [onScanned],
+    [openProduct],
   );
 
   // Permission state is still loading
@@ -127,6 +182,15 @@ export default function ScanScreen({ onScanned }: Props) {
           <Corner className="bottom-0 right-0 rounded-br-2xl border-b-[8px] border-r-[8px]" />
         </View>
       </View>
+
+      <View className="absolute inset-0 items-end justify-start top-16 right-6">
+        <ListToggle
+          options={filterOptions}
+          value={filters}
+          onChange={setFilters}
+        />
+      </View>
+
       <ProductResultSheet
         visible={selected !== null}
         product={selected?.product ?? null}
@@ -140,6 +204,9 @@ export default function ScanScreen({ onScanned }: Props) {
           });
           setSelected(null);
         }}
+        filterOptions={filterOptions}
+        filters={filters}
+        setFilters={setFilters}
       />
     </View>
   );

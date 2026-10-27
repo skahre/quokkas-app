@@ -1,5 +1,6 @@
 import IconButton from "@/components/icon-button";
-import type { Restriction } from "@/context/profile-context";
+import ListToggle from "@/components/list-toggle";
+import type { Restriction, RestrictionList } from "@/context/profile-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useEffect, useRef } from "react";
 import {
@@ -14,8 +15,6 @@ import {
 } from "react-native";
 
 const colors = require("../constants/colors");
-
-// TODO: Add toggle between allergen-lists
 
 export type SheetProduct = {
   name: string;
@@ -117,6 +116,9 @@ type Props = {
   matches: ProductMatch[];
   onClose: () => void;
   onShowIngredients?: () => void;
+  filterOptions: RestrictionList[];
+  filters: string[];
+  setFilters: (value: string[]) => void;
 };
 
 export default function ProductResultSheet({
@@ -125,6 +127,9 @@ export default function ProductResultSheet({
   matches,
   onClose,
   onShowIngredients,
+  filterOptions,
+  filters,
+  setFilters,
 }: Props) {
   const { height } = useWindowDimensions();
 
@@ -138,18 +143,12 @@ export default function ProductResultSheet({
     }).start();
   }, [visible, progress]);
 
-  const last = useRef({ product, matches });
-  if (product) last.current = { product, matches };
-  const shown = last.current;
+  if (!product) return null;
 
-  if (!shown.product) return null;
-
-  const status = getStatus(shown.matches);
+  const status = getStatus(matches);
   const s = STATUS[status];
 
-  const rows = [...shown.matches].sort(
-    (a, b) => RANK[a.presence] - RANK[b.presence],
-  );
+  const rows = [...matches].sort((a, b) => RANK[a.presence] - RANK[b.presence]);
 
   return (
     <View
@@ -186,9 +185,9 @@ export default function ProductResultSheet({
       >
         {/* Product header */}
         <View className="flex-row items-center gap-4 rounded-t-[40px] bg-white px-6 py-6">
-          {shown.product.imageUrl ? (
+          {product.imageUrl ? (
             <Image
-              source={{ uri: shown.product.imageUrl }}
+              source={{ uri: product.imageUrl }}
               className="h-20 w-14"
               resizeMode="contain"
               accessibilityIgnoresInvertColors
@@ -197,8 +196,8 @@ export default function ProductResultSheet({
             <View className="h-20 w-14 rounded-lg bg-background" />
           )}
           <View className="flex-1">
-            <Text className="text-xl text-ink">{shown.product.name}</Text>
-            <Text className="text-base text-ink/70">{shown.product.brand}</Text>
+            <Text className="text-xl text-ink">{product.name}</Text>
+            <Text className="text-base text-ink/70">{product.brand}</Text>
           </View>
           <IconButton label="Stäng" onPress={onClose}>
             <Ionicons
@@ -207,6 +206,14 @@ export default function ProductResultSheet({
               color={colors.ink}
             />
           </IconButton>
+        </View>
+
+        <View className="self-end place-self-end">
+          <ListToggle
+            options={filterOptions}
+            value={filters}
+            onChange={setFilters}
+          />
         </View>
 
         {/* Result */}
@@ -222,7 +229,7 @@ export default function ProductResultSheet({
               accessibilityLiveRegion="polite"
               className={`flex-1 font-bold text-2xl ${s.textClass}`}
             >
-              {getHeadline(status, shown.matches)}
+              {getHeadline(status, matches)}
             </Text>
           </View>
 

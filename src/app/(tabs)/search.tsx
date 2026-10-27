@@ -1,6 +1,6 @@
-import type { ProductMatch, SheetProduct } from "@/components/result-sheet";
 import ProductResultSheet, { buildMatches } from "@/components/result-sheet";
 import SearchBar from "@/components/search-bar";
+import type { RestrictionList } from "@/context/profile-context";
 import { useProfile } from "@/context/profile-context";
 import {
   getProductDetails,
@@ -8,6 +8,7 @@ import {
   searchProducts,
   uncheckable,
   type FoodProduct,
+  type ProductDetails,
 } from "@/lib/open-food-facts";
 import { router } from "expo-router";
 import { useRef, useState } from "react";
@@ -25,7 +26,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 type SearchError = "rate" | "generic" | null;
 
 export default function SearchScreen() {
-  const { restrictions } = useProfile();
+  const { restrictions, lists } = useProfile();
 
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<FoodProduct[]>([]);
@@ -33,11 +34,29 @@ export default function SearchScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<SearchError>(null);
   const [openingCode, setOpeningCode] = useState<string | null>(null);
-  const [selected, setSelected] = useState<{
-    code: string;
-    product: SheetProduct;
-    matches: ProductMatch[];
-  } | null>(null);
+  const [selected, setSelected] = useState<ProductDetails | null>(null);
+  const [filters, setFilters] = useState<string[]>(["mine"]);
+
+  const filterOptions: RestrictionList[] = [
+    {
+      id: "mine",
+      name: "Mina restriktioner",
+      restrictions,
+    },
+    ...lists.filter((list) => list.id !== "mine"),
+  ];
+
+  const activeRestrictions = filterOptions
+    .filter((list) => filters.includes(list.id))
+    .flatMap((list) => list.restrictions);
+  const matches = selected
+    ? buildMatches(
+        activeRestrictions,
+        selected.contains,
+        selected.traces,
+        uncheckable(activeRestrictions, selected),
+      )
+    : [];
 
   const abortRef = useRef<AbortController | null>(null);
 
@@ -80,16 +99,7 @@ export default function SearchScreen() {
     setOpeningCode(item.code);
     try {
       const details = await getProductDetails(item.code);
-      setSelected({
-        code: details.code,
-        product: details,
-        matches: buildMatches(
-          restrictions,
-          details.contains,
-          details.traces,
-          uncheckable(restrictions, details),
-        ),
-      });
+      setSelected(details);
     } catch (e) {
       Alert.alert(
         e instanceof RateLimitError
@@ -156,8 +166,8 @@ export default function SearchScreen() {
       {/* Covers the screen above the nav bar */}
       <ProductResultSheet
         visible={selected !== null}
-        product={selected?.product ?? null}
-        matches={selected?.matches ?? []}
+        product={selected}
+        matches={matches}
         onClose={() => setSelected(null)}
         onShowIngredients={() => {
           if (!selected) return;
@@ -167,6 +177,9 @@ export default function SearchScreen() {
           });
           setSelected(null);
         }}
+        filterOptions={filterOptions}
+        filters={filters}
+        setFilters={setFilters}
       />
     </View>
   );
