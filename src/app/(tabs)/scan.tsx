@@ -1,8 +1,8 @@
 import ListToggle from "@/components/list-toggle";
-import type { ProductMatch, SheetProduct } from "@/components/result-sheet";
+import type { SheetProduct } from "@/components/result-sheet";
 import ProductResultSheet, { buildMatches } from "@/components/result-sheet";
 import type { RestrictionList } from "@/context/profile-context";
-import { Restriction, useProfile } from "@/context/profile-context";
+import { useProfile } from "@/context/profile-context";
 import {
   getProductDetails,
   RateLimitError,
@@ -11,7 +11,7 @@ import {
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { router, useIsFocused } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Alert, Linking, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -23,12 +23,10 @@ export default function ScanScreen() {
   const [selected, setSelected] = useState<{
     code: string;
     product: SheetProduct;
-    matches: ProductMatch[];
+    details: Awaited<ReturnType<typeof getProductDetails>>;
   } | null>(null);
   const [openingCode, setOpeningCode] = useState<string | null>(null);
   const [filters, setFilters] = useState<string[]>(["mine"]);
-  const [activeRestrictions, setActiveRestrictions] =
-    useState<Restriction[]>(restrictions);
 
   const filterOptions: RestrictionList[] = [
     {
@@ -39,28 +37,31 @@ export default function ScanScreen() {
     ...lists.filter((list) => list.id !== "mine"),
   ];
 
-  useEffect(() => {
-    setActiveRestrictions(
-      filterOptions
-        .filter((list) => filters.includes(list.id))
-        .flatMap((list) => list.restrictions),
-    );
-  }, [filters]);
+  const activeRestrictions = filterOptions
+    .filter((list) => filters.includes(list.id))
+    .flatMap((list) => list.restrictions);
+
+  const matches = selected
+    ? buildMatches(
+        activeRestrictions,
+        selected.details.contains,
+        selected.details.traces,
+        uncheckable(activeRestrictions, selected.details),
+      )
+    : [];
 
   const openProduct = async (code: string) => {
     if (openingCode) return;
+
     setOpeningCode(code);
+
     try {
       const details = await getProductDetails(code);
+
       setSelected({
         code: details.code,
         product: details,
-        matches: buildMatches(
-          activeRestrictions,
-          details.contains,
-          details.traces,
-          uncheckable(activeRestrictions, details),
-        ),
+        details,
       });
     } catch (e) {
       Alert.alert(
@@ -73,43 +74,6 @@ export default function ScanScreen() {
       setOpeningCode(null);
     }
   };
-
-  useEffect(() => {
-    if (!selected) return;
-
-    let cancelled = false;
-
-    const refreshMatches = async () => {
-      try {
-        const details = await getProductDetails(selected.code);
-
-        if (cancelled) return;
-
-        const matches = buildMatches(
-          activeRestrictions,
-          details.contains,
-          details.traces,
-          uncheckable(activeRestrictions, details),
-        );
-
-        setSelected((current) => {
-          if (!current || current.code !== selected.code) {
-            return current;
-          }
-
-          return { ...current, matches };
-        });
-      } catch (error) {
-        console.error("Failed to refresh matches:", error);
-      }
-    };
-
-    refreshMatches();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [filters, restrictions, lists, selected?.code]);
 
   const handleScan = useCallback(
     ({ data }: { data: string }) => {
@@ -194,7 +158,7 @@ export default function ScanScreen() {
       <ProductResultSheet
         visible={selected !== null}
         product={selected?.product ?? null}
-        matches={selected?.matches ?? []}
+        matches={matches}
         onClose={() => setSelected(null)}
         onShowIngredients={() => {
           if (!selected) return;
