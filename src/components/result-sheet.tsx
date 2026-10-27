@@ -24,6 +24,7 @@ export type SheetProduct = {
 export type Presence = "contains" | "traces" | "unknown" | "none";
 
 export type ProductMatch = {
+  id: string;
   name: string;
   severity: Restriction["severity"];
   presence: Presence;
@@ -37,11 +38,11 @@ export function buildMatches(
 ): ProductMatch[] {
   return restrictions.map((r) => ({
     ...r,
-    presence: contains.includes(r.name)
+    presence: contains.includes(r.id)
       ? "contains"
-      : traces.includes(r.name)
+      : traces.includes(r.id)
         ? "traces"
-        : unknown.includes(r.name)
+        : unknown.includes(r.id)
           ? "unknown"
           : "none",
   }));
@@ -125,7 +126,6 @@ export default function ProductResultSheet({
 }: Props) {
   const { height } = useWindowDimensions();
 
-  // 0 = hidden, 1 = fully shown. Drives both the slide and the dimming.
   const progress = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(progress, {
@@ -180,10 +180,10 @@ export default function ProductResultSheet({
             },
           ],
         }}
-        className="overflow-hidden rounded-t-xl bg-background"
+        className="overflow-hidden rounded-t-[40px] bg-background"
       >
         {/* Product header */}
-        <View className="flex-row items-center gap-4 rounded-t-xl bg-white py-4 px-8">
+        <View className="flex-row items-center gap-4 rounded-t-[40px] bg-white px-6 py-6">
           {shown.product.imageUrl ? (
             <Image
               source={{ uri: shown.product.imageUrl }}
@@ -210,7 +210,7 @@ export default function ProductResultSheet({
         {/* Result */}
         <ScrollView
           style={{ flexGrow: 0 }}
-          contentContainerClassName="gap-8 p-4"
+          contentContainerClassName="gap-6 px-5 pb-6 pt-8"
           showsVerticalScrollIndicator={false}
         >
           <View className="flex-row items-center gap-4 px-1">
@@ -237,7 +237,7 @@ export default function ProductResultSheet({
               const prefix = PREFIX[m.presence];
               return (
                 <View
-                  key={m.name}
+                  key={m.id}
                   className="flex-row items-center gap-4 rounded-3xl bg-white px-5 py-4 shadow-md shadow-ink/20"
                 >
                   <MaterialCommunityIcons

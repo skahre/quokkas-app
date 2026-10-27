@@ -4,44 +4,38 @@ import IconButton from "@/components/icon-button";
 import SearchBar from "@/components/search-bar";
 import SponsorFooter from "@/components/sponsor-footer";
 import ToleranceModal from "@/components/tolerance-modal";
-import type { Restriction, Severity } from "@/context/profile-context";
+import type {
+  Ingredient,
+  Restriction,
+  Severity,
+} from "@/context/profile-context";
 import useKeyboardVisible from "@/hooks/use-keyboard-visible";
+import { RateLimitError, searchIngredients } from "@/lib/open-food-facts";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { ComponentProps, ReactNode, useMemo, useState } from "react";
-import { KeyboardAvoidingView, ScrollView, Text, View } from "react-native";
+import { ComponentProps, ReactNode, useEffect, useMemo, useState } from "react";
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const colors = require("../constants/colors");
 
-// TODO: replace with API
-const INGREDIENTS = [
-  "Fisk",
-  "Gluten",
-  "Jordnötter",
-  "Laktos",
-  "Lök",
-  "Mjölk",
-  "Nötter",
-  "Selleri",
-  "Senap",
-  "Sesamfrön",
-  "Skaldjur",
-  "Sojabönor",
-  "Ägg",
-];
+// Wait this long after the last keystroke before asking Open Food Facts.
+const DEBOUNCE_MS = 500;
+const MIN_CHARS = 2;
 
 type Props = {
-  /** Rendered in the header row. Give it `flex-1` so it fills the space. */
   title: ReactNode;
-  /** The restrictions being edited: your own, or a saved list's. */
   items: Restriction[];
-  /** Called when the user confirms a tolerance in the popup. */
-  onSetSeverity: (name: string, severity: Severity) => void;
+  onSetSeverity: (item: Ingredient, severity: Severity) => void;
   onDone: () => void;
   doneLabel?: string;
   doneIcon?: ComponentProps<typeof Button>["icon"];
-  /** Back chevron in the header. Turn off for the onboarding step. */
   showBack?: boolean;
   showSponsor?: boolean;
 };
@@ -57,23 +51,60 @@ export default function RestrictionsEditor({
   showSponsor = false,
 }: Props) {
   const [query, setQuery] = useState("");
-  // Name of the ingredient whose tolerance is being chosen, or null when the
-  // popup is closed. Used both for adding a new item and editing an old one.
-  const [editing, setEditing] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<Ingredient[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<"rate" | "generic" | null>(null);
+  const [editing, setEditing] = useState<Ingredient | null>(null);
   const keyboardVisible = useKeyboardVisible();
 
   const q = query.trim().toLowerCase();
 
-  const results = useMemo(() => {
-    if (!q) return [];
-    const pool = Array.from(
-      new Set([...INGREDIENTS, ...items.map((r) => r.name)]),
-    );
-    return pool.filter((name) => name.toLowerCase().includes(q));
-  }, [q, items]);
+  useEffect(() => {
+    if (q.length < MIN_CHARS) {
+      setSuggestions([]);
+      setLoading(false);
+      setError(null);
+      return;
+    }
 
-  const severityOf = (name: string) =>
-    items.find((r) => r.name === name)?.severity;
+    const controller = new AbortController();
+    setLoading(true);
+    setError(null);
+    const timer = setTimeout(async () => {
+      try {
+        const found = await searchIngredients(q, controller.signal);
+        if (!controller.signal.aborted) setSuggestions(found);
+      } catch (e) {
+        if (!controller.signal.aborted) {
+          setSuggestions([]);
+          setError(e instanceof RateLimitError ? "rate" : "generic");
+        }
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    }, DEBOUNCE_MS);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [q]);
+
+  const severityOf = (id: string) => items.find((r) => r.id === id)?.severity;
+
+  const results = useMemo(() => {
+    if (q.length < MIN_CHARS) return [];
+    const local = items.filter((r) => r.name.toLowerCase().includes(q));
+    const seen = new Set(local.map((r) => r.id));
+    return [...local, ...suggestions.filter((s) => !seen.has(s.id))];
+  }, [q, items, suggestions]);
+
+  const emptyText =
+    error === "rate"
+      ? "Du har sökt för många gånger. Vänta en minut och försök igen."
+      : error === "generic"
+        ? "Kunde inte söka just nu. Försök igen."
+        : "Inga ingredienser hittades.";
 
   return (
     <KeyboardAvoidingView behavior="padding" className="flex-1 bg-background">
@@ -94,7 +125,11 @@ export default function RestrictionsEditor({
         </View>
 
         <View className="flex-1 p-4 gap-4">
-          <SearchBar query={query} setQuery={setQuery} />
+          <SearchBar
+            query={query}
+            setQuery={setQuery}
+            placeholder="Sök ingrediens eller allergen..."
+          />
 
           {/* While searching: results. Otherwise: the current restrictions. */}
           <View className="flex-1">
@@ -104,47 +139,55 @@ export default function RestrictionsEditor({
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode="on-drag"
             >
-              {q ? (
-                results.length > 0 ? (
-                  results.map((name) => {
-                    const severity = severityOf(name);
-                    // New items: "add" opens the popup. Existing ones: "edit"
-                    // opens it with their current tolerance.
+              {q.length >= MIN_CHARS ? (
+                <>
+                  {results.map((item) => {
+                    const severity = severityOf(item.id);
                     return severity ? (
                       <Allergen
-                        key={name}
-                        label={name}
+                        key={item.id}
+                        label={item.name}
                         severity={severity}
                         actionType="edit"
-                        onAction={() => setEditing(name)}
+                        onAction={() => setEditing(item)}
                       />
                     ) : (
                       <Allergen
-                        key={name}
-                        label={name}
+                        key={item.id}
+                        label={item.name}
                         actionType="add"
-                        onAction={() => setEditing(name)}
+                        onAction={() => setEditing(item)}
                       />
                     );
-                  })
-                ) : (
-                  <Text className="text-center text-lg text-ink">
-                    Inga ingredienser hittades.
-                  </Text>
-                )
+                  })}
+
+                  {loading && <ActivityIndicator className="mt-2" />}
+
+                  {!loading && results.length === 0 && (
+                    <Text className="text-center text-lg text-ink">
+                      {emptyText}
+                    </Text>
+                  )}
+
+                  {results.length > 0 && (
+                    <Text className="py-2 text-center text-sm text-ink/70">
+                      Ingredienser från Open Food Facts
+                    </Text>
+                  )}
+                </>
               ) : items.length > 0 ? (
                 items.map((item) => (
                   <Allergen
-                    key={item.name}
+                    key={item.id}
                     label={item.name}
                     severity={item.severity}
                     actionType="edit"
-                    onAction={() => setEditing(item.name)}
+                    onAction={() => setEditing(item)}
                   />
                 ))
               ) : (
                 <Text className="text-center text-base text-ink">
-                  Sök efter ingredienser för att lägga till dem.
+                  Sök efter en ingrediens eller allergen för att lägga till den.
                 </Text>
               )}
             </ScrollView>
@@ -162,11 +205,9 @@ export default function RestrictionsEditor({
         {showSponsor && !keyboardVisible && <SponsorFooter />}
       </SafeAreaView>
 
-      {/* Nothing is added or changed until the user presses OK. "Kan äta"
-          removes the item. */}
       <ToleranceModal
         visible={editing !== null}
-        value={editing ? severityOf(editing) : undefined}
+        value={editing ? severityOf(editing.id) : undefined}
         onSelect={(severity) => {
           if (editing) onSetSeverity(editing, severity);
         }}

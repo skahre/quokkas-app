@@ -26,7 +26,7 @@ export default function Allergen({
         />
       )}
 
-      <Text className="flex-1 text-lg text-ink">{label}</Text>
+      <Text className="flex-1 text-lg text-ink capitalize">{label}</Text>
       <IconButton
         onPress={onAction}
         label={actionType}

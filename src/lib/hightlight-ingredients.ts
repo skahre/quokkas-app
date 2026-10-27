@@ -1,7 +1,41 @@
 import type { Restriction } from "@/context/profile-context";
 
+const SHELLFISH = [
+  "skaldjur",
+  "räk",
+  "krabb",
+  "hummer",
+  "kräft",
+  "mussl",
+  "ostron",
+  "bläckfisk",
+  "krill",
+  "shrimp",
+  "crab",
+  "lobster",
+  "crustacean",
+  "mollus",
+];
+const MILK = [
+  "mjölk",
+  "grädde",
+  "smör",
+  "ost",
+  "vassle",
+  "kasein",
+  "laktos",
+  "milk",
+  "cream",
+  "butter",
+  "whey",
+  "casein",
+  "lactose",
+  "yoghurt",
+  "yogurt",
+];
+
 const KEYWORDS: Record<string, string[]> = {
-  Gluten: [
+  "en:gluten": [
     "gluten",
     "vete",
     "råg",
@@ -17,24 +51,10 @@ const KEYWORDS: Record<string, string[]> = {
     "barley",
     "oat",
   ],
-  Skaldjur: [
-    "skaldjur",
-    "räk",
-    "krabb",
-    "hummer",
-    "kräft",
-    "mussl",
-    "ostron",
-    "bläckfisk",
-    "krill",
-    "shrimp",
-    "crab",
-    "lobster",
-    "crustacean",
-    "mollus",
-  ],
-  Ägg: ["ägg", "egg"],
-  Fisk: [
+  "en:crustaceans": SHELLFISH,
+  "en:molluscs": SHELLFISH,
+  "en:eggs": ["ägg", "egg"],
+  "en:fish": [
     "fisk",
     "lax",
     "torsk",
@@ -47,38 +67,10 @@ const KEYWORDS: Record<string, string[]> = {
     "tuna",
     "anchov",
   ],
-  Jordnötter: ["jordnöt", "peanut"],
-  Sojabönor: ["soja", "soy"],
-  Mjölk: [
-    "mjölk",
-    "grädde",
-    "smör",
-    "ost",
-    "vassle",
-    "kasein",
-    "laktos",
-    "milk",
-    "cream",
-    "butter",
-    "whey",
-    "casein",
-    "lactose",
-    "yoghurt",
-    "yogurt",
-  ],
-  Laktos: [
-    "laktos",
-    "lactose",
-    "mjölk",
-    "grädde",
-    "vassle",
-    "milk",
-    "cream",
-    "whey",
-    "yoghurt",
-    "yogurt",
-  ],
-  Nötter: [
+  "en:peanuts": ["jordnöt", "peanut"],
+  "en:soybeans": ["soja", "soy"],
+  "en:milk": MILK,
+  "en:nuts": [
     "nötter",
     "hasselnöt",
     "valnöt",
@@ -95,12 +87,17 @@ const KEYWORDS: Record<string, string[]> = {
     "pecan",
     "tree nut",
   ],
-  Selleri: ["selleri", "celery"],
-  Senap: ["senap", "mustard"],
-  Sesamfrön: ["sesam"],
-  Sulfiter: ["sulfit", "sulphite", "sulfite", "svaveldioxid", "sulphur"],
-  Lupin: ["lupin"],
-  Lök: ["lök", "onion", "shallot"],
+  "en:celery": ["selleri", "celery"],
+  "en:mustard": ["senap", "mustard"],
+  "en:sesame-seeds": ["sesam"],
+  "en:sulphur-dioxide-and-sulphites": [
+    "sulfit",
+    "sulphite",
+    "sulfite",
+    "svaveldioxid",
+    "sulphur",
+  ],
+  "en:lupin": ["lupin"],
 };
 
 const LETTER = /[a-zåäöé]/;
@@ -113,6 +110,11 @@ function hasKeyword(textLower: string, kw: string): boolean {
     i = textLower.indexOf(kw, i + 1);
   }
   return false;
+}
+
+function wordsFor(r: Restriction): string[] {
+  const own = r.name.trim().toLowerCase();
+  return [...(own ? [own] : []), ...(KEYWORDS[r.id] ?? [])];
 }
 
 export type IngredientPart = {
@@ -186,8 +188,7 @@ export function parseIngredients(
 
     let severity: IngredientItem["severity"];
     for (const r of restrictions) {
-      const words = KEYWORDS[r.name] ?? [r.name.toLowerCase()];
-      if (words.some((w) => hasKeyword(lower, w))) {
+      if (wordsFor(r).some((w) => hasKeyword(lower, w))) {
         severity = r.severity;
         if (severity === "allergy") break;
       }

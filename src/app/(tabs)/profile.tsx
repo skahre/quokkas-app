@@ -2,6 +2,7 @@ import Allergen from "@/components/allergen";
 import Button from "@/components/button";
 import IconButton from "@/components/icon-button";
 import ToleranceModal from "@/components/tolerance-modal";
+import type { Ingredient } from "@/context/profile-context";
 import { useProfile } from "@/context/profile-context";
 import {
   Ionicons,
@@ -16,20 +17,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 const colors = require("../../constants/colors");
 
 export default function ProfileScreen() {
-  const {
-    name,
-    restrictions,
-    lists,
-    createList,
-    deleteList,
-    getSeverity,
-    setSeverity,
-  } = useProfile();
-  const [editing, setEditing] = useState<string | null>(null);
+  const { name, restrictions, lists, createList, deleteList, setSeverity } =
+    useProfile();
+  const [editing, setEditing] = useState<Ingredient | null>(null);
 
   // TODO: point these at your real routes.
   const openSettings = () => router.push("/profile");
-  const editRestrictions = () => router.push("/profile");
   const editList = (id: string) =>
     router.push({ pathname: "/list/[id]", params: { id } });
 
@@ -113,7 +106,7 @@ export default function ProfileScreen() {
                       label={item.name}
                       severity={item.severity}
                       actionType="edit"
-                      onAction={() => setEditing(item.name)}
+                      onAction={() => setEditing(item)}
                     />
                   ))
                 ) : (

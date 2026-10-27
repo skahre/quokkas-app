@@ -9,20 +9,20 @@ import React, {
   useState,
 } from "react";
 
-const STORAGE_KEY = "profile:v1";
+const STORAGE_KEY = "profile:v2";
 
 /* ---------- Types ---------- */
 
-/** "ok" = can eat it. It's a choice in the UI but is never stored: picking it
- *  removes the item from the list. */
+export type Ingredient = { id: string; name: string };
+
 export type Severity = "allergy" | "intolerance" | "ok";
 export type StoredSeverity = Exclude<Severity, "ok">;
 
-export type Restriction = { name: string; severity: StoredSeverity };
+export type Restriction = Ingredient & { severity: StoredSeverity };
 
 export type RestrictionList = {
   id: string;
-  name: string; // e.g. "Alice Cohen", "Familjen"
+  name: string;
   restrictions: Restriction[];
 };
 
@@ -37,44 +37,43 @@ const INITIAL_STATE: ProfileState = { name: "", restrictions: [], lists: [] };
 // What a newly added restriction (e.g. from the onboarding chips) starts as.
 const DEFAULT_SEVERITY: StoredSeverity = "allergy";
 
-/* ---------- Pure helpers ---------- */
+/* ---------- Pure helpers (items are identified by id) ---------- */
 
-const without = (items: Restriction[], name: string) =>
-  items.filter((r) => r.name !== name);
+const without = (items: Restriction[], id: string) =>
+  items.filter((r) => r.id !== id);
 
 /** Set an item's severity, adding it if missing. "ok" removes it. */
 function withSeverity(
   items: Restriction[],
-  name: string,
+  item: Ingredient,
   severity: Severity,
 ): Restriction[] {
-  if (severity === "ok") return without(items, name);
-  return items.some((r) => r.name === name)
-    ? items.map((r) => (r.name === name ? { ...r, severity } : r))
-    : [...items, { name, severity }];
+  if (severity === "ok") return without(items, item.id);
+  return items.some((r) => r.id === item.id)
+    ? items.map((r) => (r.id === item.id ? { ...r, severity } : r))
+    : [...items, { id: item.id, name: item.name, severity }];
 }
 
-function toggled(items: Restriction[], name: string): Restriction[] {
-  return items.some((r) => r.name === name)
-    ? without(items, name)
-    : [...items, { name, severity: DEFAULT_SEVERITY }];
+function toggled(items: Restriction[], item: Ingredient): Restriction[] {
+  return items.some((r) => r.id === item.id)
+    ? without(items, item.id)
+    : [...items, { id: item.id, name: item.name, severity: DEFAULT_SEVERITY }];
 }
 
-/** Accepts old saved data (plain strings) as well as the current shape. */
+/** Keeps only well-formed entries, so bad saved data can't crash the app. */
 function normalize(items: unknown): Restriction[] {
   if (!Array.isArray(items)) return [];
-  return items.flatMap((x): Restriction[] => {
-    if (typeof x === "string") return [{ name: x, severity: DEFAULT_SEVERITY }];
-    if (x && typeof x.name === "string") {
-      return [
-        {
-          name: x.name,
-          severity: x.severity === "intolerance" ? "intolerance" : "allergy",
-        },
-      ];
-    }
-    return [];
-  });
+  return items.flatMap((x): Restriction[] =>
+    x && typeof x.id === "string" && typeof x.name === "string"
+      ? [
+          {
+            id: x.id,
+            name: x.name,
+            severity: x.severity === "intolerance" ? "intolerance" : "allergy",
+          },
+        ]
+      : [],
+  );
 }
 
 /* ---------- Reducer ---------- */
@@ -84,14 +83,14 @@ type Action =
   | { type: "reset" }
   | { type: "name/set"; name: string }
   | { type: "mine/set"; items: Restriction[] }
-  | { type: "mine/toggle"; name: string }
-  | { type: "mine/severity"; name: string; severity: Severity }
+  | { type: "mine/toggle"; item: Ingredient }
+  | { type: "mine/severity"; item: Ingredient; severity: Severity }
   | { type: "list/create"; list: RestrictionList }
   | { type: "list/rename"; id: string; name: string }
   | { type: "list/delete"; id: string }
   | { type: "list/set"; id: string; items: Restriction[] }
-  | { type: "list/toggle"; id: string; name: string }
-  | { type: "list/severity"; id: string; name: string; severity: Severity };
+  | { type: "list/toggle"; id: string; item: Ingredient }
+  | { type: "list/severity"; id: string; item: Ingredient; severity: Severity };
 
 const mapList = (
   state: ProfileState,
@@ -115,14 +114,14 @@ function reducer(state: ProfileState, action: Action): ProfileState {
     case "mine/toggle":
       return {
         ...state,
-        restrictions: toggled(state.restrictions, action.name),
+        restrictions: toggled(state.restrictions, action.item),
       };
     case "mine/severity":
       return {
         ...state,
         restrictions: withSeverity(
           state.restrictions,
-          action.name,
+          action.item,
           action.severity,
         ),
       };
@@ -140,14 +139,14 @@ function reducer(state: ProfileState, action: Action): ProfileState {
     case "list/toggle":
       return mapList(state, action.id, (l) => ({
         ...l,
-        restrictions: toggled(l.restrictions, action.name),
+        restrictions: toggled(l.restrictions, action.item),
       }));
     case "list/severity":
       return mapList(state, action.id, (l) => ({
         ...l,
         restrictions: withSeverity(
           l.restrictions,
-          action.name,
+          action.item,
           action.severity,
         ),
       }));
@@ -157,31 +156,29 @@ function reducer(state: ProfileState, action: Action): ProfileState {
 /* ---------- Context ---------- */
 
 type ProfileContextValue = ProfileState & {
-  /** False until saved data has loaded from storage. */
   ready: boolean;
 
   setName: (name: string) => void;
 
   // The user's own restrictions
-  hasRestriction: (name: string) => boolean;
-  /** The saved severity, or undefined if the item isn't a restriction. */
-  getSeverity: (name: string) => StoredSeverity | undefined;
-  /** Add with the default severity, or remove if already present. */
-  toggleRestriction: (name: string) => void;
-  /** Change severity; adds the item if missing; "ok" removes it. */
-  setSeverity: (name: string, severity: Severity) => void;
+  hasRestriction: (id: string) => boolean;
+  getSeverity: (id: string) => StoredSeverity | undefined;
+  toggleRestriction: (item: Ingredient) => void;
+  setSeverity: (item: Ingredient, severity: Severity) => void;
   setRestrictions: (items: Restriction[]) => void;
 
-  // Other saved lists
   getList: (id: string) => RestrictionList | undefined;
   createList: (name: string, restrictions?: Restriction[]) => string; // returns new id
   renameList: (id: string, name: string) => void;
   deleteList: (id: string) => void;
   setListRestrictions: (id: string, items: Restriction[]) => void;
-  toggleListRestriction: (id: string, name: string) => void;
-  setListSeverity: (id: string, name: string, severity: Severity) => void;
+  toggleListRestriction: (listId: string, item: Ingredient) => void;
+  setListSeverity: (
+    listId: string,
+    item: Ingredient,
+    severity: Severity,
+  ) => void;
 
-  /** Clear everything (e.g. on log out). */
   reset: () => void;
 };
 
@@ -194,8 +191,6 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
   const [ready, setReady] = useState(false);
 
-  // Load once on startup. Everything goes through normalize(), so data saved
-  // by an older version of the app (plain strings) is upgraded automatically.
   useEffect(() => {
     (async () => {
       try {
@@ -225,8 +220,6 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
-  // Save on every change, but only after the initial load, so the empty
-  // starting state never overwrites what's stored.
   useEffect(() => {
     if (!ready) return;
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state)).catch((e) =>
@@ -243,12 +236,12 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     [],
   );
   const toggleRestriction = useCallback(
-    (name: string) => dispatch({ type: "mine/toggle", name }),
+    (item: Ingredient) => dispatch({ type: "mine/toggle", item }),
     [],
   );
   const setSeverity = useCallback(
-    (name: string, severity: Severity) =>
-      dispatch({ type: "mine/severity", name, severity }),
+    (item: Ingredient, severity: Severity) =>
+      dispatch({ type: "mine/severity", item, severity }),
     [],
   );
   const createList = useCallback(
@@ -273,12 +266,13 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     [],
   );
   const toggleListRestriction = useCallback(
-    (id: string, name: string) => dispatch({ type: "list/toggle", id, name }),
+    (id: string, item: Ingredient) =>
+      dispatch({ type: "list/toggle", id, item }),
     [],
   );
   const setListSeverity = useCallback(
-    (id: string, name: string, severity: Severity) =>
-      dispatch({ type: "list/severity", id, name, severity }),
+    (id: string, item: Ingredient, severity: Severity) =>
+      dispatch({ type: "list/severity", id, item, severity }),
     [],
   );
   const reset = useCallback(() => dispatch({ type: "reset" }), []);
@@ -288,9 +282,9 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       ...state,
       ready,
       setName,
-      hasRestriction: (name) => state.restrictions.some((r) => r.name === name),
-      getSeverity: (name) =>
-        state.restrictions.find((r) => r.name === name)?.severity,
+      hasRestriction: (id) => state.restrictions.some((r) => r.id === id),
+      getSeverity: (id) =>
+        state.restrictions.find((r) => r.id === id)?.severity,
       toggleRestriction,
       setSeverity,
       setRestrictions,

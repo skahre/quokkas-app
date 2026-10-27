@@ -1,31 +1,13 @@
 import Button from "@/components/button";
 import GradientBackground from "@/components/gradient-background";
 import SponsorFooter from "@/components/sponsor-footer";
+import { EU_ALLERGENS } from "@/constants/allergens";
 import { useProfile } from "@/context/profile-context";
 import { router } from "expo-router";
 import { Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-// 14 allergens required to be declared in the EU
-const DEFAULT_OPTIONS = [
-  "Gluten",
-  "Skaldjur",
-  "Ägg",
-  "Fisk",
-  "Jordnötter",
-  "Sojabönor",
-  "Mjölk",
-  "Nötter",
-  "Selleri",
-  "Senap",
-  "Sesamfrön",
-];
-
-type Props = {
-  options?: string[];
-};
-
-export default function OnboardingScreen({ options = DEFAULT_OPTIONS }: Props) {
+export default function OnboardingScreen() {
   const { hasRestriction, toggleRestriction } = useProfile();
 
   return (
@@ -45,12 +27,12 @@ export default function OnboardingScreen({ options = DEFAULT_OPTIONS }: Props) {
 
           {/* Chips */}
           <View className="flex-row flex-wrap justify-center gap-x-4 gap-y-4">
-            {options.map((option) => {
-              const isSelected = hasRestriction(option);
+            {EU_ALLERGENS.map((allergen) => {
+              const isSelected = hasRestriction(allergen.id);
               return (
                 <Pressable
-                  key={option}
-                  onPress={() => toggleRestriction(option)}
+                  key={allergen.id}
+                  onPress={() => toggleRestriction(allergen)}
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: isSelected }}
                   className={`rounded-full px-4 py-2 active:opacity-80 ${
@@ -62,7 +44,7 @@ export default function OnboardingScreen({ options = DEFAULT_OPTIONS }: Props) {
                       isSelected ? "text-white" : "text-ink"
                     }`}
                   >
-                    {option}
+                    {allergen.name}
                   </Text>
                 </Pressable>
               );

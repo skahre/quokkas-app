@@ -8,13 +8,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 const FALLBACK_NAME = "Ny lista";
 
 export default function EditListScreen() {
-  // The route is /list/[id], so the id comes from the URL.
   const { id } = useLocalSearchParams<{ id: string }>();
   const { getList, renameList, setListSeverity } = useProfile();
 
   const list = getList(id);
 
-  // Deleted, or a bad link
   if (!list) {
     return (
       <SafeAreaView className="flex-1 items-center justify-center gap-6 bg-background p-6">
@@ -44,8 +42,8 @@ export default function EditListScreen() {
         />
       }
       items={list.restrictions}
-      onSetSeverity={(name, severity) =>
-        setListSeverity(list.id, name, severity)
+      onSetSeverity={(item, severity) =>
+        setListSeverity(list.id, item, severity)
       }
       onDone={() => router.back()}
     />

@@ -45,7 +45,7 @@ const BANNER = {
 
 const HIGHLIGHT = {
   allergy: "bg-danger/40",
-  intolerance: "bg-warning/40",
+  intolerance: "bg-warn/40",
 } as const;
 
 export default function ProductScreen() {
