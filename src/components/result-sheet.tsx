@@ -15,6 +15,8 @@ import {
 
 const colors = require("../constants/colors");
 
+// TODO: Add toggle between allergen-lists
+
 export type SheetProduct = {
   name: string;
   brand: string;
