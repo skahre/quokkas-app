@@ -64,6 +64,8 @@ export default function ScanScreen() {
         details,
       });
     } catch (e) {
+      locked.current = false;
+
       Alert.alert(
         e instanceof RateLimitError
           ? "För många förfrågningar"
@@ -77,12 +79,14 @@ export default function ScanScreen() {
 
   const handleScan = useCallback(
     ({ data }: { data: string }) => {
-      if (locked.current) return;
-      locked.current = true; // ignore repeat reads of the same barcode...
+      if (locked.current || selected !== null || openingCode !== null) {
+        return;
+      }
+
+      locked.current = true;
       openProduct(data);
-      setTimeout(() => (locked.current = false), 2000); // ...for 2 seconds
     },
-    [openProduct],
+    [selected, openingCode, openProduct],
   );
 
   // Permission state is still loading
@@ -129,7 +133,9 @@ export default function ScanScreen() {
             barcodeScannerSettings={{
               barcodeTypes: ["ean13", "ean8", "upc_a", "upc_e", "code128"],
             }}
-            onBarcodeScanned={handleScan}
+            onBarcodeScanned={
+              selected !== null || openingCode !== null ? undefined : handleScan
+            }
           />
         )}
       </View>
@@ -159,14 +165,20 @@ export default function ScanScreen() {
         visible={selected !== null}
         product={selected?.product ?? null}
         matches={matches}
-        onClose={() => setSelected(null)}
+        onClose={() => {
+          setSelected(null);
+          locked.current = false;
+        }}
         onShowIngredients={() => {
           if (!selected) return;
+
           router.push({
             pathname: "/product/[id]",
             params: { id: selected.code },
           });
+
           setSelected(null);
+          locked.current = false;
         }}
         filterOptions={filterOptions}
         filters={filters}

@@ -123,7 +123,7 @@ export default function SearchScreen() {
   return (
     <View className="flex-1">
       <SafeAreaView edges={["top"]} className="flex-1 bg-background">
-        <View className="flex-1 p-4 gap-4">
+        <View className="flex-1 gap-4 px-4 pt-4">
           <SearchBar
             query={query}
             setQuery={handleQueryChange}

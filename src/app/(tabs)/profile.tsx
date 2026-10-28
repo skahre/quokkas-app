@@ -55,7 +55,7 @@ export default function ProfileScreen() {
         visible={isLoggingOut}
         onClose={() => setIsLoggingOut(false)}
       />
-      <SafeAreaView className="flex-1 bg-background">
+      <SafeAreaView edges={["top"]} className="flex-1 bg-background">
         <ScrollView
           className="flex-1"
           contentContainerClassName="p-4"

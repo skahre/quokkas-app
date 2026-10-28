@@ -134,7 +134,16 @@ export default function BottomNav({
   }));
 
   return (
-    <View className="bg-white">
+    <View
+      className="bg-white"
+      style={{
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: -10 },
+        shadowOpacity: 1,
+        shadowRadius: 10,
+        elevation: 8,
+      }}
+    >
       <SafeAreaView edges={["bottom"]}>
         <View
           className="h-20 flex-row"
