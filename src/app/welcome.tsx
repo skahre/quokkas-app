@@ -6,14 +6,8 @@ import { router } from "expo-router";
 import { Image, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-type Props = {
-  onLogin?: () => void;
-};
-
-export default function WelcomeScreen({ onLogin }: Props) {
+export default function WelcomeScreen() {
   const { name } = useProfile();
-
-  if (name) router.push("/scan");
 
   return (
     <GradientBackground>
@@ -32,13 +26,15 @@ export default function WelcomeScreen({ onLogin }: Props) {
 
           <View className="items-center gap-4">
             <Button
-              onPress={onLogin}
+              onPress={() => {
+                if (name) router.push("/scan");
+              }}
               variant="primary"
               label="Logga in"
               className="self-center"
             />
             <Button
-              onPress={() => router.push("/onboarding")}
+              onPress={() => router.push("/register")}
               variant="secondary"
               label="Skapa konto"
             />

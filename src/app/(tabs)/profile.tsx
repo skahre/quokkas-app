@@ -1,6 +1,7 @@
 import Allergen from "@/components/allergen";
 import Button from "@/components/button";
 import IconButton from "@/components/icon-button";
+import LogoutModal from "@/components/logout-modal";
 import ToleranceModal from "@/components/tolerance-modal";
 import type { Ingredient } from "@/context/profile-context";
 import { useProfile } from "@/context/profile-context";
@@ -20,9 +21,8 @@ export default function ProfileScreen() {
   const { name, restrictions, lists, createList, deleteList, setSeverity } =
     useProfile();
   const [editing, setEditing] = useState<Ingredient | null>(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  // TODO: point these at your real routes.
-  const openSettings = () => router.push("/profile");
   const editList = (id: string) =>
     router.push({ pathname: "/list/[id]", params: { id } });
 
@@ -51,6 +51,10 @@ export default function ProfileScreen() {
         onSelect={(s) => setSeverity(editing!, s)} // only runs on OK
         onClose={() => setEditing(null)}
       />
+      <LogoutModal
+        visible={isLoggingOut}
+        onClose={() => setIsLoggingOut(false)}
+      />
       <SafeAreaView className="flex-1 bg-background">
         <ScrollView
           className="flex-1"
@@ -68,7 +72,10 @@ export default function ProfileScreen() {
               <Text className="flex-1 font-bold text-lg text-ink">
                 {name || "Din profil"}
               </Text>
-              <IconButton label="Inställningar" onPress={openSettings}>
+              <IconButton
+                label="Inställningar"
+                onPress={() => setIsLoggingOut(true)}
+              >
                 <Ionicons name="settings-sharp" size={28} color={colors.ink} />
               </IconButton>
             </View>

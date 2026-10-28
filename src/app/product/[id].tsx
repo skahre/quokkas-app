@@ -22,7 +22,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const colors = require("../../../constants/colors");
+const colors = require("../../constants/colors");
 
 const BANNER = {
   safe: {

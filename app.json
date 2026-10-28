@@ -21,7 +21,8 @@
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
       ],
-      "package": "com.sandra.kahre.foodscanner"
+      "package": "com.sandra.kahre.foodscanner",
+      "softwareKeyboardLayoutMode": "resize"
     },
     "web": {
       "bundler": "metro",
