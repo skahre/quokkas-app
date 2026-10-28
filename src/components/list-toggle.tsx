@@ -10,6 +10,7 @@ type MultiSelectDropdownProps = {
   value: string[];
   onChange: (value: string[]) => void;
   placeholder?: string;
+  plainButton?: boolean;
 };
 
 export default function ListToggle({
@@ -17,6 +18,7 @@ export default function ListToggle({
   value,
   onChange,
   placeholder = "Select options",
+  plainButton = false,
 }: MultiSelectDropdownProps) {
   const [visible, setVisible] = useState(false);
 
@@ -33,7 +35,11 @@ export default function ListToggle({
       {/* Dropdown trigger */}
       <Pressable
         onPress={() => setVisible(true)}
-        className="rounded-full shadow-md shadow-ink/20 bg-white px-3.5 py-3 self-start items-center justify-center"
+        className={
+          plainButton
+            ? ""
+            : "rounded-full shadow-md shadow-ink/20 bg-white px-3.5 py-3 self-start items-center justify-center"
+        }
         hitSlop={10}
         accessibilityRole="button"
         accessibilityLabel={placeholder}

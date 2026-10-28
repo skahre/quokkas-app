@@ -199,6 +199,12 @@ export default function ProductResultSheet({
             <Text className="text-xl text-ink">{product.name}</Text>
             <Text className="text-base text-ink/70">{product.brand}</Text>
           </View>
+          <ListToggle
+            options={filterOptions}
+            value={filters}
+            onChange={setFilters}
+            plainButton
+          />
           <IconButton label="Stäng" onPress={onClose}>
             <Ionicons
               name="close-circle-outline"
@@ -206,14 +212,6 @@ export default function ProductResultSheet({
               color={colors.ink}
             />
           </IconButton>
-        </View>
-
-        <View className="self-end place-self-end">
-          <ListToggle
-            options={filterOptions}
-            value={filters}
-            onChange={setFilters}
-          />
         </View>
 
         {/* Result */}

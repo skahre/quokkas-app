@@ -128,6 +128,7 @@ export default function SearchScreen() {
             query={query}
             setQuery={handleQueryChange}
             onSubmit={runSearch}
+            placeholder="Sök produkt eller märke..."
           />
 
           {loading && <ActivityIndicator />}
