@@ -1,7 +1,7 @@
 import type { Ingredient, Restriction } from "@/context/profile-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ensureTaxonomy, searchTaxonomy } from "./taxonomy";
 
-// Open Food Facts asks every app to identify itself with a User-Agent.
 // TODO: put your app's name, version and a real contact address here.
 const USER_AGENT = "MyApp/1.0 (contact@example.com)";
 const HEADERS = { "User-Agent": USER_AGENT, Accept: "application/json" };
@@ -126,7 +126,6 @@ async function withSwedishNames(
   const missing = items.map((i) => i.id).filter((id) => !nameCache.has(id));
   if (missing.length > 0) {
     try {
-      // Ingredients first; whatever isn't found there is tried as an allergen.
       await fetchNames("ingredients", missing, signal);
       await fetchNames(
         "allergens",
@@ -267,4 +266,83 @@ export function uncheckable(
   details: ProductDetails,
 ): string[] {
   return details.hasIngredients ? [] : restrictions.map((r) => r.id);
+}
+
+/* ---------- Names in many languages, for highlighting ---------- */
+
+const NAME_LANGS = "sv,en,da,no,fi,de,fr,es,it,nl,pl,pt";
+const NAMES_KEY = "restriction-names:v1";
+
+const namesCache = new Map<string, string[]>();
+let savedNamesLoaded = false;
+
+async function loadSavedNames() {
+  if (savedNamesLoaded) return;
+  savedNamesLoaded = true;
+  try {
+    const saved = await AsyncStorage.getItem(NAMES_KEY);
+    if (!saved) return;
+    for (const [id, list] of Object.entries(JSON.parse(saved))) {
+      if (Array.isArray(list)) namesCache.set(id, list.map(String));
+    }
+  } catch {}
+}
+
+async function fetchAllLanguageNames(
+  tagtype: "ingredients" | "allergens",
+  ids: string[],
+  signal?: AbortSignal,
+) {
+  if (ids.length === 0) return;
+  const url =
+    `${TAXONOMY_URL}?tagtype=${tagtype}` +
+    `&tags=${ids.map(encodeURIComponent).join(",")}` +
+    `&fields=name&lc=${NAME_LANGS}`;
+  const data = await getJson(url, signal);
+  if (!data || typeof data !== "object") return;
+
+  for (const id of ids) {
+    // Shape: { "en:milk": { name: { sv: "Mjölk", de: "Milch", ... } } }
+    const name = (data as Record<string, any>)[id]?.name;
+    if (!name || typeof name !== "object") continue;
+    const words = Object.values(name).filter(
+      (v): v is string => typeof v === "string" && v.trim().length >= 3,
+    );
+    if (words.length > 0) namesCache.set(id, Array.from(new Set(words)));
+  }
+}
+
+export async function getRestrictionNames(
+  ids: string[],
+  signal?: AbortSignal,
+): Promise<Record<string, string[]>> {
+  await loadSavedNames();
+
+  const missing = ids.filter((id) => !namesCache.has(id));
+  if (missing.length > 0) {
+    try {
+      await fetchAllLanguageNames("ingredients", missing, signal);
+      await fetchAllLanguageNames(
+        "allergens",
+        missing.filter((id) => !namesCache.has(id)),
+        signal,
+      );
+      for (const id of missing) if (!namesCache.has(id)) namesCache.set(id, []);
+      AsyncStorage.setItem(
+        NAMES_KEY,
+        JSON.stringify(Object.fromEntries(namesCache)),
+      ).catch(() => {});
+    } catch (e) {
+      if (signal?.aborted) throw e;
+      console.warn("Could not fetch names in other languages", e);
+    }
+  }
+
+  const result: Record<string, string[]> = {};
+  for (const id of ids) result[id] = namesCache.get(id) ?? [];
+  return result;
+}
+
+export async function loadIngredientList(): Promise<void> {
+  await ensureTaxonomy(HEADERS);
 }

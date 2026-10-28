@@ -1,11 +1,11 @@
 import { File, Paths } from "expo-file-system";
 
 const BASE = "https://static.openfoodfacts.org/data/taxonomies";
-const CACHE_FILE = "taxonomy-v1.json";
+const CACHE_FILE = "taxonomy-v2.json";
 const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // refresh about monthly
 const MAX_RESULTS = 15;
 
-type Entry = [id: string, name: string, keys: string[]];
+type Entry = [id: string, name: string, keys: string[], parents: string[]];
 type Cache = { savedAt: number; entries: Entry[] };
 
 export type TaxonomyResult = { id: string; name: string };
@@ -61,7 +61,7 @@ function toEntries(raw: unknown): Entry[] {
     const keys = Array.from(
       new Set(words.filter((w): w is string => !!w).map(normalize)),
     );
-    out.push([id, capitalize(display), keys]);
+    out.push([id, capitalize(display), keys, asStrings(node?.parents)]);
   }
   return out;
 }
@@ -74,7 +74,6 @@ async function fetchTaxonomy(name: string, headers: Record<string, string>) {
 }
 
 async function download(headers: Record<string, string>): Promise<Entry[]> {
-  // One after the other, so two big files aren't in memory at once.
   const allergens = toEntries(await fetchTaxonomy("allergens", headers));
   const ingredients = toEntries(await fetchTaxonomy("ingredients", headers));
 
@@ -176,4 +175,48 @@ export async function searchTaxonomy(
   return hits
     .slice(0, MAX_RESULTS)
     .map(({ entry }) => ({ id: entry[0], name: entry[1] }));
+}
+
+/* ---------- related words, for highlighting ingredient lists ---------- */
+
+let byId: Map<string, Entry> | null = null;
+let childrenOf: Map<string, string[]> | null = null;
+
+function graph() {
+  if (!index) return null;
+  if (!byId || !childrenOf) {
+    byId = new Map();
+    childrenOf = new Map();
+    for (const entry of index) {
+      byId.set(entry[0], entry);
+      for (const parent of entry[3]) {
+        const list = childrenOf.get(parent);
+        if (list) list.push(entry[0]);
+        else childrenOf.set(parent, [entry[0]]);
+      }
+    }
+  }
+  return { byId, childrenOf };
+}
+
+export function ownKeysFor(id: string): string[] {
+  return graph()?.byId.get(id)?.[2] ?? [];
+}
+
+export function relatedKeysFor(id: string, limit = 800): string[] {
+  const g = graph();
+  if (!g) return [];
+
+  const keys = new Set<string>();
+  const seen = new Set<string>([id]);
+  const queue = [...(g.childrenOf.get(id) ?? [])];
+
+  while (queue.length > 0 && keys.size < limit) {
+    const child = queue.shift()!;
+    if (seen.has(child)) continue;
+    seen.add(child);
+    g.byId.get(child)?.[2].forEach((k) => keys.add(k));
+    queue.push(...(g.childrenOf.get(child) ?? []));
+  }
+  return Array.from(keys);
 }

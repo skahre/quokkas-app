@@ -1,4 +1,5 @@
 import type { Restriction } from "@/context/profile-context";
+import { normalize, ownKeysFor, relatedKeysFor } from "./taxonomy";
 
 const SHELLFISH = [
   "skaldjur",
@@ -11,10 +12,14 @@ const SHELLFISH = [
   "bläckfisk",
   "krill",
   "shrimp",
+  "prawn",
   "crab",
   "lobster",
   "crustacean",
   "mollus",
+  "crevette",
+  "garnele",
+  "gambas",
 ];
 const MILK = [
   "mjölk",
@@ -32,6 +37,14 @@ const MILK = [
   "lactose",
   "yoghurt",
   "yogurt",
+  "lait",
+  "milch",
+  "leche",
+  "latte",
+  "melk",
+  "maito",
+  "mælk",
+  "melkeprotein",
 ];
 
 const KEYWORDS: Record<string, string[]> = {
@@ -50,10 +63,35 @@ const KEYWORDS: Record<string, string[]> = {
     "rye",
     "barley",
     "oat",
+    "weizen",
+    "roggen",
+    "gerste",
+    "hafer",
+    "blé",
+    "seigle",
+    "orge",
+    "avoine",
+    "trigo",
+    "centeno",
+    "cebada",
+    "avena",
+    "frumento",
+    "grano",
   ],
   "en:crustaceans": SHELLFISH,
   "en:molluscs": SHELLFISH,
-  "en:eggs": ["ägg", "egg"],
+  "en:eggs": [
+    "ägg",
+    "egg",
+    "ei",
+    "oeuf",
+    "œuf",
+    "huevo",
+    "uovo",
+    "uova",
+    "muna",
+    "æg",
+  ],
   "en:fish": [
     "fisk",
     "lax",
@@ -66,9 +104,21 @@ const KEYWORDS: Record<string, string[]> = {
     "salmon",
     "tuna",
     "anchov",
+    "poisson",
+    "fisch",
+    "pescado",
+    "pesce",
+    "kala",
   ],
-  "en:peanuts": ["jordnöt", "peanut"],
-  "en:soybeans": ["soja", "soy"],
+  "en:peanuts": [
+    "jordnöt",
+    "peanut",
+    "arachide",
+    "erdnuss",
+    "cacahuete",
+    "maapähkinä",
+  ],
+  "en:soybeans": ["soja", "soy", "soia", "sojapapu"],
   "en:milk": MILK,
   "en:nuts": [
     "nötter",
@@ -86,9 +136,26 @@ const KEYWORDS: Record<string, string[]> = {
     "pistachio",
     "pecan",
     "tree nut",
+    "noisette",
+    "amande",
+    "haselnuss",
+    "walnuss",
+    "avellana",
+    "almendra",
+    "nocciola",
+    "mandorla",
+    "pähkinä",
   ],
-  "en:celery": ["selleri", "celery"],
-  "en:mustard": ["senap", "mustard"],
+  "en:celery": ["selleri", "celery", "céleri", "sellerie", "apio", "sedano"],
+  "en:mustard": [
+    "senap",
+    "mustard",
+    "moutarde",
+    "senf",
+    "mostaza",
+    "senape",
+    "sinappi",
+  ],
   "en:sesame-seeds": ["sesam"],
   "en:sulphur-dioxide-and-sulphites": [
     "sulfit",
@@ -100,21 +167,46 @@ const KEYWORDS: Record<string, string[]> = {
   "en:lupin": ["lupin"],
 };
 
-const LETTER = /[a-zåäöé]/;
+const WORD = /[a-z0-9]/;
 
-function hasKeyword(textLower: string, kw: string): boolean {
-  if (kw.length > 3) return textLower.includes(kw);
-  let i = textLower.indexOf(kw);
+function containsWord(text: string, kw: string): boolean {
+  if (kw.length > 3) return text.includes(kw);
+  let i = text.indexOf(kw);
   while (i !== -1) {
-    if (i === 0 || !LETTER.test(textLower[i - 1])) return true;
-    i = textLower.indexOf(kw, i + 1);
+    if (i === 0 || !WORD.test(text[i - 1])) return true;
+    i = text.indexOf(kw, i + 1);
   }
   return false;
 }
 
-function wordsFor(r: Restriction): string[] {
-  const own = r.name.trim().toLowerCase();
-  return [...(own ? [own] : []), ...(KEYWORDS[r.id] ?? [])];
+type Matcher = {
+  anywhere: string[];
+  atStart: string[];
+  severity: Restriction["severity"];
+};
+
+function matcherFor(r: Restriction, names: Record<string, string[]>): Matcher {
+  const anywhere = new Set<string>();
+  const add = (word: string) => {
+    const n = normalize(word);
+    if (n.length >= 3) anywhere.add(n);
+  };
+
+  add(r.name);
+  (KEYWORDS[r.id] ?? []).forEach(add);
+  (names[r.id] ?? []).forEach(add);
+  ownKeysFor(r.id).forEach(add);
+
+  const atStart = new Set<string>();
+  for (const key of relatedKeysFor(r.id)) {
+    if (key.length >= 4 && !anywhere.has(key)) atStart.add(key);
+  }
+
+  return {
+    anywhere: Array.from(anywhere),
+    atStart: Array.from(atStart),
+    severity: r.severity,
+  };
 }
 
 export type IngredientPart = {
@@ -180,16 +272,24 @@ function toParts(item: string): IngredientPart[] {
 export function parseIngredients(
   text: string,
   restrictions: Restriction[],
+  names: Record<string, string[]> = {},
 ): IngredientItem[] {
+  const matchers = restrictions.map((r) => matcherFor(r, names));
+
   return splitTopLevel(text).map((raw) => {
     const lead = raw.match(/^\s*/)?.[0] ?? "";
     const body = raw.slice(lead.length);
-    const lower = body.replace(/_/g, "").toLowerCase();
+
+    const folded = normalize(body.replace(/_/g, ""));
+    const head = folded.split("(")[0].trim();
 
     let severity: IngredientItem["severity"];
-    for (const r of restrictions) {
-      if (wordsFor(r).some((w) => hasKeyword(lower, w))) {
-        severity = r.severity;
+    for (const m of matchers) {
+      const hit =
+        m.anywhere.some((w) => containsWord(folded, w)) ||
+        m.atStart.some((w) => head.startsWith(w));
+      if (hit) {
+        severity = m.severity;
         if (severity === "allergy") break;
       }
     }

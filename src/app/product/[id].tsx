@@ -4,6 +4,8 @@ import { useProfile } from "@/context/profile-context";
 import { parseIngredients } from "@/lib/hightlight-ingredients";
 import {
   getProductDetails,
+  getRestrictionNames,
+  loadIngredientList,
   uncheckable,
   type ProductDetails,
 } from "@/lib/open-food-facts";
@@ -20,7 +22,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const colors = require("../../constants/colors");
+const colors = require("../../../constants/colors");
 
 const BANNER = {
   safe: {
@@ -49,7 +51,7 @@ const HIGHLIGHT = {
 } as const;
 
 export default function ProductScreen() {
-  const { id: code } = useLocalSearchParams<{ id: string }>();
+  const { code } = useLocalSearchParams<{ code: string }>();
   const { restrictions } = useProfile();
 
   const [details, setDetails] = useState<ProductDetails | null>(null);
@@ -70,12 +72,28 @@ export default function ProductScreen() {
     return () => controller.abort();
   }, [code, attempt]);
 
+  const [names, setNames] = useState<Record<string, string[]>>({});
+  const [listReady, setListReady] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadIngredientList()
+      .then(() => !cancelled && setListReady(true))
+      .catch(() => {});
+    getRestrictionNames(restrictions.map((r) => r.id))
+      .then((n) => !cancelled && setNames(n))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [restrictions]);
+
   const ingredients = useMemo(
     () =>
       details?.ingredientsText
-        ? parseIngredients(details.ingredientsText, restrictions)
+        ? parseIngredients(details.ingredientsText, restrictions, names)
         : [],
-    [details, restrictions],
+    [details, restrictions, names, listReady],
   );
 
   return (
