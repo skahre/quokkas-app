@@ -51,7 +51,7 @@ const HIGHLIGHT = {
 } as const;
 
 export default function ProductScreen() {
-  const { code } = useLocalSearchParams<{ code: string }>();
+  const { id } = useLocalSearchParams<{ id: string }>();
   const { restrictions } = useProfile();
 
   const [details, setDetails] = useState<ProductDetails | null>(null);
@@ -62,7 +62,7 @@ export default function ProductScreen() {
     const controller = new AbortController();
     setDetails(null);
     setError(false);
-    getProductDetails(code, controller.signal)
+    getProductDetails(id, controller.signal)
       .then((d) => {
         if (!controller.signal.aborted) setDetails(d);
       })
@@ -70,7 +70,7 @@ export default function ProductScreen() {
         if (!controller.signal.aborted) setError(true);
       });
     return () => controller.abort();
-  }, [code, attempt]);
+  }, [id, attempt]);
 
   const [names, setNames] = useState<Record<string, string[]>>({});
   const [listReady, setListReady] = useState(false);

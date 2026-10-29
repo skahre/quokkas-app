@@ -57,7 +57,6 @@ export default function ScanScreen() {
 
     try {
       const details = await getProductDetails(code);
-
       setSelected({
         code: details.code,
         product: details,

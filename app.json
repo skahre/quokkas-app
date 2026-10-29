@@ -1,52 +1,51 @@
 {
   "expo": {
-    "name": "food-scanner",
+    "name": "Qoll: Allergi Scanner",
     "slug": "food-scanner",
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "foodscanner",
     "userInterfaceStyle": "automatic",
-    "ios": {
-      "icon": "logo-icon.png"
-    },
+    "icon": "./assets/ios-logo.png",
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "",
-        "backgroundImage": "",
-        "monochromeImage": ""
+        "foregroundImage": "./assets/android-foreground.png",
+        "backgroundColor": "#176B68"
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
       ],
-      "package": "com.sandra.kahre.foodscanner",
+      "package": "com.sandra.kahre.qoll",
       "softwareKeyboardLayoutMode": "resize"
     },
     "web": {
       "bundler": "metro",
       "output": "server",
-      "favicon": ""
+      "favicon": "./assets/ios-logo.png"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#232323",
-          "image": "./assets/logo-icon.png",
-
-          "imageWidth": 200
+          "backgroundColor": "#176B68",
+          "image": "./assets/android-foreground.png",
+          "imageWidth": 200,
+          "resizeMode": "contain"
         }
       ],
       [
         "expo-camera",
         {
-          "cameraPermission": "Appen använder kameran för att skanna streckkoder."
+          "cameraPermission": "Appen använder kameran för att skanna streckkoder.",
+          "barcodeScannerEnabled": true
         }
       ],
-      "expo-status-bar"
+      "expo-status-bar",
+      "expo-image",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
