@@ -48,7 +48,7 @@ export default function LogoutModal({
             kommer du att förlora alla ändringar som gjorts. Är du säker på att
             du vill logga ut?
           </Text>
-          <View className="flex-row items-center justify-end gap-3">
+          <View className="flex-row items-center justify-between gap-3">
             <Pressable
               onPress={onClose}
               accessibilityRole="button"
@@ -60,7 +60,7 @@ export default function LogoutModal({
             <Pressable
               onPress={onLogout}
               accessibilityRole="button"
-              className="rounded-full bg-primary px-8 py-2 active:opacity-80"
+              className="rounded-full bg-danger px-8 py-2 active:opacity-80"
             >
               <Text className="font-semibold text-lg text-background">
                 Logga ut

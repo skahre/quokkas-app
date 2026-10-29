@@ -1,40 +1,77 @@
 import Allergen from "@/components/allergen";
 import Button from "@/components/button";
 import IconButton from "@/components/icon-button";
+import ImportLinkModal from "@/components/import-link-modal";
 import LogoutModal from "@/components/logout-modal";
 import ToleranceModal from "@/components/tolerance-modal";
-import type { Ingredient } from "@/context/profile-context";
+import type { Ingredient, Restriction } from "@/context/profile-context";
 import { useProfile } from "@/context/profile-context";
+import { buildShareUrl } from "@/lib/share-link";
 import {
   Ionicons,
   MaterialCommunityIcons,
   MaterialIcons,
 } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useState } from "react";
-import { Alert, Pressable, ScrollView, Share, Text, View } from "react-native";
+import type { ComponentProps } from "react";
+import { useRef, useState } from "react";
+import {
+  Alert,
+  Modal,
+  Pressable,
+  ScrollView,
+  Share,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const colors = require("../../constants/colors");
+
+type ViewRef =
+  NonNullable<ComponentProps<typeof View>["ref"]> extends
+    { current: infer T } | ((instance: infer T) => void)
+    ? T
+    : never;
 
 export default function ProfileScreen() {
   const { name, restrictions, lists, createList, deleteList, setSeverity } =
     useProfile();
   const [editing, setEditing] = useState<Ingredient | null>(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const { width } = useWindowDimensions();
+  const plusRef = useRef<ViewRef>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(
+    null,
+  );
+  const [isImporting, setIsImporting] = useState(false);
+
+  const openMenu = () =>
+    plusRef.current?.measureInWindow((x, y, w, h) =>
+      setMenuPos({ top: y + h + 4, right: width - (x + w) }),
+    );
+  const closeMenu = () => setMenuPos(null);
+
+  const addList = () => {
+    closeMenu();
+    const id = createList("Ny lista");
+    editList(id);
+  };
+
+  const importList = (listName: string, items: Restriction[]) => {
+    const id = createList(listName, items);
+    editList(id); // opens it so it can be renamed or adjusted
+  };
 
   const editList = (id: string) =>
     router.push({ pathname: "/list/[id]", params: { id } });
 
-  // TODO: A link that can be uploaded in the app
-  const shareRestrictions = () =>
+  const shareRestrictions = () => {
+    const url = buildShareUrl(name, restrictions);
     Share.share({
-      message: `Mina restriktioner: ${restrictions.join(", ")}`,
+      message: `${name || "Någon"} delar sina restriktioner i Qoll:\n${url}`,
     });
-
-  const addList = () => {
-    const id = createList("Ny lista");
-    editList(id); // open it straight away so it can be renamed and filled
   };
 
   const confirmDeleteList = (id: string, listName: string) =>
@@ -54,6 +91,54 @@ export default function ProfileScreen() {
       <LogoutModal
         visible={isLoggingOut}
         onClose={() => setIsLoggingOut(false)}
+      />
+      <Modal
+        visible={menuPos !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={closeMenu}
+        statusBarTranslucent
+      >
+        <Pressable
+          onPress={closeMenu}
+          accessibilityLabel="Stäng"
+          className="flex-1"
+        >
+          {menuPos && (
+            <View
+              style={{
+                position: "absolute",
+                top: menuPos.top,
+                right: menuPos.right,
+              }}
+              className="min-w-[170px] rounded-2xl bg-white py-2 shadow-lg shadow-ink/30"
+            >
+              <Pressable
+                onPress={addList}
+                accessibilityRole="menuitem"
+                className="px-5 py-3 active:opacity-60"
+              >
+                <Text className="text-base text-ink">Skapa ny lista</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  closeMenu();
+                  setIsImporting(true);
+                }}
+                accessibilityRole="menuitem"
+                className="px-5 py-3 active:opacity-60"
+              >
+                <Text className="text-base text-ink">Importera länk</Text>
+              </Pressable>
+            </View>
+          )}
+        </Pressable>
+      </Modal>
+
+      <ImportLinkModal
+        visible={isImporting}
+        onClose={() => setIsImporting(false)}
+        onImport={importList}
       />
       <SafeAreaView edges={["top"]} className="flex-1 bg-background">
         <ScrollView
@@ -141,13 +226,15 @@ export default function ProfileScreen() {
                 >
                   Dina listor
                 </Text>
-                <IconButton label="Skapa ny lista" onPress={addList}>
-                  <Ionicons
-                    name="add-circle-outline"
-                    size={32}
-                    color={colors.primary}
-                  />
-                </IconButton>
+                <View ref={plusRef} collapsable={false}>
+                  <IconButton label="Skapa ny lista" onPress={openMenu}>
+                    <Ionicons
+                      name="add-circle-outline"
+                      size={32}
+                      color={colors.primary}
+                    />
+                  </IconButton>
+                </View>
               </View>
 
               <View className="gap-2">
