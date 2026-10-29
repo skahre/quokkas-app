@@ -85,8 +85,17 @@ export default function ProfileScreen() {
       <ToleranceModal
         visible={editing !== null}
         value={"allergy"}
-        onSelect={(s) => setSeverity(editing!, s)} // only runs on OK
+        onSelect={(s) => setSeverity(editing!, s)}
         onClose={() => setEditing(null)}
+        onLearnMore={() => {
+          const item = editing;
+          setEditing(null);
+          if (item)
+            router.push({
+              pathname: "/allergen/[id]",
+              params: { id: item.id, name: item.name },
+            });
+        }}
       />
       <LogoutModal
         visible={isLoggingOut}

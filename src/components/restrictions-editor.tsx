@@ -212,6 +212,15 @@ export default function RestrictionsEditor({
           if (editing) onSetSeverity(editing, severity);
         }}
         onClose={() => setEditing(null)}
+        onLearnMore={() => {
+          const item = editing;
+          setEditing(null);
+          if (item)
+            router.push({
+              pathname: "/allergen/[id]",
+              params: { id: item.id, name: item.name },
+            });
+        }}
       />
     </KeyboardAvoidingView>
   );
