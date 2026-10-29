@@ -1,6 +1,7 @@
 import ProductResultSheet, { buildMatches } from "@/components/result-sheet";
 import SearchBar from "@/components/search-bar";
 import { useFilters } from "@/context/filter-context";
+import useRecentSearches from "@/hooks/use-recent-searches";
 import {
   getProductDetails,
   RateLimitError,
@@ -9,6 +10,7 @@ import {
   type FoodProduct,
   type ProductDetails,
 } from "@/lib/open-food-facts";
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useRef, useState } from "react";
 import {
@@ -16,15 +18,23 @@ import {
   Alert,
   FlatList,
   Image,
+  Keyboard,
   Pressable,
   Text,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+const colors = require("../../constants/colors");
 
 type SearchError = "rate" | "generic" | null;
 
 export default function SearchScreen() {
+  const {
+    recents,
+    add: addRecent,
+    remove: removeRecent,
+    clear: clearRecents,
+  } = useRecentSearches();
   const { filters, setFilters, filterOptions, activeRestrictions } =
     useFilters();
   const [query, setQuery] = useState("");
@@ -57,11 +67,11 @@ export default function SearchScreen() {
     }
   };
 
-  const runSearch = async () => {
-    const q = query.trim();
+  const runSearch = async (text: string = query) => {
+    const q = text.trim();
     if (q.length < 2) return;
 
-    abortRef.current?.abort(); // drop an older request that's still running
+    abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
 
@@ -72,12 +82,19 @@ export default function SearchScreen() {
       if (controller.signal.aborted) return;
       setResults(data);
       setSearched(true);
+      if (data.length > 0) addRecent(q); // only worth saving if it found something
     } catch (e) {
       if (controller.signal.aborted) return;
       setError(e instanceof RateLimitError ? "rate" : "generic");
     } finally {
       if (!controller.signal.aborted) setLoading(false);
     }
+  };
+
+  const searchRecent = (q: string) => {
+    Keyboard.dismiss();
+    setQuery(q);
+    runSearch(q);
   };
 
   const openProduct = async (item: FoodProduct) => {
@@ -113,7 +130,7 @@ export default function SearchScreen() {
           <SearchBar
             query={query}
             setQuery={handleQueryChange}
-            onSubmit={runSearch}
+            onSubmit={() => runSearch()}
             placeholder="Sök produkt eller märke..."
           />
 
@@ -133,7 +150,16 @@ export default function SearchScreen() {
               />
             )}
             ListEmptyComponent={
-              loading ? undefined : (
+              loading ? undefined : !searched &&
+                !error &&
+                recents.length > 0 ? (
+                <RecentSearches
+                  items={recents}
+                  onSelect={searchRecent}
+                  onRemove={removeRecent}
+                  onClear={clearRecents}
+                />
+              ) : (
                 <Text className="text-center text-lg text-ink">
                   {emptyText}
                 </Text>
@@ -206,5 +232,61 @@ function ProductCard({
       </View>
       {opening && <ActivityIndicator />}
     </Pressable>
+  );
+}
+
+function RecentSearches({
+  items,
+  onSelect,
+  onRemove,
+  onClear,
+}: {
+  items: string[];
+  onSelect: (q: string) => void;
+  onRemove: (q: string) => void;
+  onClear: () => void;
+}) {
+  return (
+    <View className="gap-2">
+      <View className="flex-row items-center justify-between px-1">
+        <Text accessibilityRole="header" className="font-bold text-xl text-ink">
+          Senaste sökningar
+        </Text>
+        <Pressable
+          onPress={onClear}
+          accessibilityRole="button"
+          hitSlop={10}
+          className="active:opacity-60"
+        >
+          <Text className="text-base text-primary">Rensa</Text>
+        </Pressable>
+      </View>
+
+      {items.map((q) => (
+        <View
+          key={q}
+          className="flex-row items-center rounded-3xl bg-white p-4 shadow-md shadow-black/20"
+        >
+          <Pressable
+            onPress={() => onSelect(q)}
+            accessibilityRole="button"
+            accessibilityLabel={`Sök igen: ${q}`}
+            className="flex-1 flex-row items-center gap-3 py-4 active:opacity-60"
+          >
+            <Ionicons name="time-outline" size={24} color={colors.ink} />
+            <Text className="flex-1 text-lg text-ink">{q}</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => onRemove(q)}
+            accessibilityRole="button"
+            accessibilityLabel={`Ta bort ${q}`}
+            hitSlop={10}
+            className="p-2 active:opacity-60"
+          >
+            <Ionicons name="close" size={22} color={colors.ink} />
+          </Pressable>
+        </View>
+      ))}
+    </View>
   );
 }

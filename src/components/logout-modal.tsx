@@ -1,5 +1,6 @@
 import { useFilters } from "@/context/filter-context";
 import { useProfile } from "@/context/profile-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { Modal, Pressable, Text, View } from "react-native";
 
@@ -15,6 +16,7 @@ export default function LogoutModal({
 
   function onLogout() {
     reset();
+    AsyncStorage.removeItem("recent-searches:v1");
     resetFilters();
     onClose();
     router.push("/welcome");
