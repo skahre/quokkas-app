@@ -220,3 +220,18 @@ export function relatedKeysFor(id: string, limit = 800): string[] {
   }
   return Array.from(keys);
 }
+
+export function descendantIdsFor(id: string, limit = 2000): Set<string> {
+  const out = new Set<string>();
+  const g = graph();
+  if (!g) return out;
+
+  const queue = [...(g.childrenOf.get(id) ?? [])];
+  while (queue.length > 0 && out.size < limit) {
+    const child = queue.shift()!;
+    if (out.has(child)) continue;
+    out.add(child);
+    queue.push(...(g.childrenOf.get(child) ?? []));
+  }
+  return out;
+}

@@ -1,8 +1,7 @@
 import ListToggle from "@/components/list-toggle";
 import type { SheetProduct } from "@/components/result-sheet";
 import ProductResultSheet, { buildMatches } from "@/components/result-sheet";
-import type { RestrictionList } from "@/context/profile-context";
-import { useProfile } from "@/context/profile-context";
+import { useFilters } from "@/context/filter-context";
 import {
   getProductDetails,
   RateLimitError,
@@ -16,7 +15,8 @@ import { Alert, Linking, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function ScanScreen() {
-  const { restrictions, lists } = useProfile();
+  const { filters, setFilters, filterOptions, activeRestrictions } =
+    useFilters();
   const isFocused = useIsFocused();
   const [permission, requestPermission] = useCameraPermissions();
   const locked = useRef(false);
@@ -26,20 +26,6 @@ export default function ScanScreen() {
     details: Awaited<ReturnType<typeof getProductDetails>>;
   } | null>(null);
   const [openingCode, setOpeningCode] = useState<string | null>(null);
-  const [filters, setFilters] = useState<string[]>(["mine"]);
-
-  const filterOptions: RestrictionList[] = [
-    {
-      id: "mine",
-      name: "Mina restriktioner",
-      restrictions,
-    },
-    ...lists.filter((list) => list.id !== "mine"),
-  ];
-
-  const activeRestrictions = filterOptions
-    .filter((list) => filters.includes(list.id))
-    .flatMap((list) => list.restrictions);
 
   const matches = selected
     ? buildMatches(

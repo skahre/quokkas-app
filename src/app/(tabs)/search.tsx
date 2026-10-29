@@ -1,7 +1,6 @@
 import ProductResultSheet, { buildMatches } from "@/components/result-sheet";
 import SearchBar from "@/components/search-bar";
-import type { RestrictionList } from "@/context/profile-context";
-import { useProfile } from "@/context/profile-context";
+import { useFilters } from "@/context/filter-context";
 import {
   getProductDetails,
   RateLimitError,
@@ -26,8 +25,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 type SearchError = "rate" | "generic" | null;
 
 export default function SearchScreen() {
-  const { restrictions, lists } = useProfile();
-
+  const { filters, setFilters, filterOptions, activeRestrictions } =
+    useFilters();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<FoodProduct[]>([]);
   const [searched, setSearched] = useState(false); // has a search been run?
@@ -35,20 +34,7 @@ export default function SearchScreen() {
   const [error, setError] = useState<SearchError>(null);
   const [openingCode, setOpeningCode] = useState<string | null>(null);
   const [selected, setSelected] = useState<ProductDetails | null>(null);
-  const [filters, setFilters] = useState<string[]>(["mine"]);
 
-  const filterOptions: RestrictionList[] = [
-    {
-      id: "mine",
-      name: "Mina restriktioner",
-      restrictions,
-    },
-    ...lists.filter((list) => list.id !== "mine"),
-  ];
-
-  const activeRestrictions = filterOptions
-    .filter((list) => filters.includes(list.id))
-    .flatMap((list) => list.restrictions);
   const matches = selected
     ? buildMatches(
         activeRestrictions,

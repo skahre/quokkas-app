@@ -1,5 +1,7 @@
 import Button from "@/components/button";
+import ListToggle from "@/components/list-toggle";
 import { buildMatches, getStatus } from "@/components/result-sheet";
+import { useFilters } from "@/context/filter-context";
 import { useProfile } from "@/context/profile-context";
 import { parseIngredients } from "@/lib/hightlight-ingredients";
 import {
@@ -52,8 +54,8 @@ const HIGHLIGHT = {
 
 export default function ProductScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { restrictions } = useProfile();
-
+  const { filters, setFilters, filterOptions, activeRestrictions } =
+    useFilters();
   const [details, setDetails] = useState<ProductDetails | null>(null);
   const [error, setError] = useState(false);
   const [attempt, setAttempt] = useState(0); // bump to retry
@@ -80,20 +82,20 @@ export default function ProductScreen() {
     loadIngredientList()
       .then(() => !cancelled && setListReady(true))
       .catch(() => {});
-    getRestrictionNames(restrictions.map((r) => r.id))
+    getRestrictionNames(activeRestrictions.map((r) => r.id))
       .then((n) => !cancelled && setNames(n))
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [restrictions]);
+  }, [activeRestrictions]);
 
   const ingredients = useMemo(
     () =>
       details?.ingredientsText
-        ? parseIngredients(details.ingredientsText, restrictions, names)
+        ? parseIngredients(details.ingredientsText, activeRestrictions, names)
         : [],
-    [details, restrictions, names, listReady],
+    [details, activeRestrictions, names, listReady],
   );
 
   return (
@@ -103,16 +105,25 @@ export default function ProductScreen() {
         contentContainerClassName="gap-6 p-4 pb-8"
         showsVerticalScrollIndicator={false}
       >
-        <Pressable
-          onPress={() => router.back()}
-          accessibilityRole="button"
-          accessibilityLabel="Tillbaka"
-          hitSlop={10}
-          className="flex-row items-center gap-2 self-start active:opacity-60"
-        >
-          <Ionicons name="arrow-back" size={28} color={colors.primary} />
-          <Text className="text-xl text-primary">Tillbaka</Text>
-        </Pressable>
+        <View className="flex-row justify-between items-center">
+          <Pressable
+            onPress={() => router.back()}
+            accessibilityRole="button"
+            accessibilityLabel="Tillbaka"
+            hitSlop={10}
+            className="flex-row items-center gap-2 active:opacity-60"
+          >
+            <Ionicons name="arrow-back" size={28} color={colors.primary} />
+            <Text className="text-xl text-primary">Tillbaka</Text>
+          </Pressable>
+          <View className="">
+            <ListToggle
+              options={filterOptions}
+              value={filters}
+              onChange={setFilters}
+            />
+          </View>
+        </View>
 
         {!details && !error && <ActivityIndicator className="mt-16" />}
 
@@ -132,7 +143,7 @@ export default function ProductScreen() {
           <ProductContent
             details={details}
             ingredients={ingredients}
-            restrictions={restrictions}
+            restrictions={activeRestrictions}
           />
         )}
       </ScrollView>

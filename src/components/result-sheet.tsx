@@ -1,6 +1,7 @@
 import IconButton from "@/components/icon-button";
 import ListToggle from "@/components/list-toggle";
 import type { Restriction, RestrictionList } from "@/context/profile-context";
+import { descendantIdsFor } from "@/lib/taxonomy";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useEffect, useRef } from "react";
 import {
@@ -37,11 +38,17 @@ export function buildMatches(
   traces: string[],
   unknown: string[] = [],
 ): ProductMatch[] {
+  const has = (tags: string[], id: string) => {
+    if (tags.includes(id)) return true;
+    const kids = descendantIdsFor(id);
+    return tags.some((t) => kids.has(t));
+  };
+
   return restrictions.map((r) => ({
     ...r,
-    presence: contains.includes(r.id)
+    presence: has(contains, r.id)
       ? "contains"
-      : traces.includes(r.id)
+      : has(traces, r.id)
         ? "traces"
         : unknown.includes(r.id)
           ? "unknown"

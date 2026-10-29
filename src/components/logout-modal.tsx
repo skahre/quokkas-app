@@ -1,3 +1,4 @@
+import { useFilters } from "@/context/filter-context";
 import { useProfile } from "@/context/profile-context";
 import { router } from "expo-router";
 import { Modal, Pressable, Text, View } from "react-native";
@@ -10,9 +11,11 @@ export default function LogoutModal({
   visible: boolean;
 }) {
   const { reset } = useProfile();
+  const { resetFilters } = useFilters();
 
   function onLogout() {
     reset();
+    resetFilters();
     onClose();
     router.push("/welcome");
   }
